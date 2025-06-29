@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 from config import Config
 from database import DatabaseManager
 from audio_processor import AudioProcessor
+from content_analyzer import ContentAnalyzer
 import json
 
 app = Flask(__name__)
@@ -69,8 +70,14 @@ def view_meeting(meeting_id):
         return redirect(url_for('index'))
     
     transcription = db.get_transcription(meeting_id)
+    summary = db.get_meeting_summary(meeting_id)
+    insights = db.get_meeting_insights(meeting_id)
     
-    return render_template('meeting_detail.html', meeting=meeting, transcription=transcription)
+    return render_template('meeting_detail.html', 
+                         meeting=meeting, 
+                         transcription=transcription,
+                         summary=summary,
+                         insights=insights)
 
 @app.route('/transcribe/<int:meeting_id>', methods=['POST'])
 def transcribe_meeting(meeting_id):
@@ -117,6 +124,65 @@ def transcribe_meeting(meeting_id):
         # Update status to error
         db.update_meeting_status(meeting_id, 'error')
         return jsonify({'error': f'Transcription failed: {str(e)}'}), 500
+
+@app.route('/analyze/<int:meeting_id>', methods=['POST'])
+def analyze_meeting(meeting_id):
+    """Analyze meeting content using GPT-4"""
+    if not app.config['OPENAI_API_KEY']:
+        return jsonify({'error': 'OpenAI API key not configured'}), 400
+    
+    meeting = db.get_meeting(meeting_id)
+    if not meeting:
+        return jsonify({'error': 'Meeting not found'}), 404
+    
+    transcription = db.get_transcription(meeting_id)
+    if not transcription:
+        return jsonify({'error': 'Meeting must be transcribed first'}), 400
+    
+    try:
+        # Initialize content analyzer
+        analyzer = ContentAnalyzer(app.config['OPENAI_API_KEY'])
+        
+        # Analyze meeting content
+        analysis = analyzer.analyze_meeting(
+            transcription['full_text'], 
+            meeting['title']
+        )
+        
+        # Extract insights
+        insights = analyzer.extract_meeting_insights(transcription['full_text'])
+        
+        # Enhance action items with function calling
+        enhanced_action_items = analyzer.generate_action_items_with_calendar(
+            analysis.get('action_items', []),
+            meeting['uploaded_at'][:10]  # Use upload date as meeting date
+        )
+        
+        # Save results to database
+        db.save_meeting_summary(
+            meeting_id,
+            analysis['summary'],
+            enhanced_action_items,
+            analysis.get('decisions', []),
+            analysis.get('key_topics', [])
+        )
+        
+        db.save_meeting_insights(meeting_id, insights)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Meeting analysis completed successfully',
+            'analysis': {
+                'summary_length': len(analysis['summary']),
+                'action_items_count': len(enhanced_action_items),
+                'decisions_count': len(analysis.get('decisions', [])),
+                'key_topics_count': len(analysis.get('key_topics', [])),
+                'effectiveness_score': insights.get('effectiveness_score', 'N/A')
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Analysis failed: {str(e)}'}), 500
 
 @app.route('/api/meetings')
 def api_meetings():
