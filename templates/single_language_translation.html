@@ -1,0 +1,92 @@
+{% extends "base.html" %} {% block title %}{{ language_info.name }} Translation
+- {{ meeting.title }}{% endblock %} {% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h1>
+            <i class="fas fa-language"></i> {{ language_info.native_name }}
+            Translation
+          </h1>
+          <p class="text-muted mb-0">
+            <strong>{{ meeting.title }}</strong> • {{ language_info.name }} ({{
+            language_info.code }})
+          </p>
+        </div>
+        <div>
+          <a
+            href="{{ url_for('view_meeting_translations', meeting_id=meeting.id) }}"
+            class="btn btn-outline-secondary"
+          >
+            <i class="fas fa-arrow-left"></i> All Translations
+          </a>
+          <a
+            href="{{ url_for('view_meeting', meeting_id=meeting.id) }}"
+            class="btn btn-outline-primary"
+          >
+            <i class="fas fa-file-alt"></i> Original Meeting
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-12">
+      {% if 'summary' in translations_by_type %}
+      <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+          <h5 class="mb-0">
+            <i class="fas fa-clipboard-list"></i> Meeting Summary
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="p-3 bg-light rounded">
+            {{ translations_by_type.summary.translated_text|nl2br|safe }}
+          </div>
+        </div>
+      </div>
+      {% endif %} {% if 'action_items' in translations_by_type %}
+      <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+          <h5 class="mb-0"><i class="fas fa-tasks"></i> Action Items</h5>
+        </div>
+        <div class="card-body">
+          <div class="p-3 bg-light rounded">
+            {{ translations_by_type.action_items.translated_text|nl2br|safe }}
+          </div>
+        </div>
+      </div>
+      {% endif %} {% if 'decisions' in translations_by_type %}
+      <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="fas fa-check-circle"></i> Key Decisions
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="p-3 bg-light rounded">
+            {{ translations_by_type.decisions.translated_text|nl2br|safe }}
+          </div>
+        </div>
+      </div>
+      {% endif %} {% if 'transcript' in translations_by_type %}
+      <div class="card mb-4">
+        <div class="card-header bg-info text-white">
+          <h5 class="mb-0"><i class="fas fa-file-alt"></i> Full Transcript</h5>
+        </div>
+        <div class="card-body">
+          <div
+            class="p-3 bg-light rounded"
+            style="max-height: 400px; overflow-y: auto"
+          >
+            {{ translations_by_type.transcript.translated_text|nl2br|safe }}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -7,10 +7,19 @@ from audio_processor import AudioProcessor
 from content_analyzer import ContentAnalyzer
 from semantic_search import SemanticSearchEngine
 from visual_synthesis import VisualSynthesisEngine
+from translation_processor import TranslationProcessor
 import json
 
 app = Flask(__name__)
 app.config.from_object(Config)
+
+# Add custom template filters
+@app.template_filter('nl2br')
+def nl2br_filter(text):
+    """Convert newlines to HTML line breaks"""
+    if text is None:
+        return ''
+    return text.replace('\n', '<br>\n')
 
 # Initialize components
 db = DatabaseManager()
@@ -75,13 +84,23 @@ def view_meeting(meeting_id):
     summary = db.get_meeting_summary(meeting_id)
     insights = db.get_meeting_insights(meeting_id)
     visuals = db.get_meeting_visuals(meeting_id)
+    translations = db.get_available_translation_languages(meeting_id)
+    
+    # Get supported languages for translation
+    if app.config['OPENAI_API_KEY']:
+        translator = TranslationProcessor(app.config['OPENAI_API_KEY'])
+        supported_languages = translator.get_supported_languages()
+    else:
+        supported_languages = {}
     
     return render_template('meeting_detail.html', 
                          meeting=meeting, 
                          transcription=transcription,
                          summary=summary,
                          insights=insights,
-                         visuals=visuals)
+                         visuals=visuals,
+                         translations=translations,
+                         supported_languages=supported_languages)
 
 @app.route('/transcribe/<int:meeting_id>', methods=['POST'])
 def transcribe_meeting(meeting_id):
@@ -570,6 +589,221 @@ def delete_visual(visual_id):
     try:
         db.delete_visual_asset(visual_id)
         return jsonify({'success': True, 'message': 'Visual deleted successfully'})
+    except Exception as e:
+        return jsonify({'error': f'Delete failed: {str(e)}'}), 500
+
+@app.route('/translate/<int:meeting_id>', methods=['POST'])
+def translate_meeting(meeting_id):
+    """Translate meeting content to target language"""
+    print(f"\n🔄 Translation request received for meeting {meeting_id}")
+    
+    if not app.config['OPENAI_API_KEY']:
+        return jsonify({'error': 'OpenAI API key not configured'}), 400
+    
+    target_language = request.form.get('target_language')
+    content_types = request.form.getlist('content_types')
+    
+    print(f"📝 Target language: {target_language}")
+    print(f"📋 Content types: {content_types}")
+    
+    if not target_language:
+        return jsonify({'error': 'Target language is required'}), 400
+    
+    if not content_types:
+        return jsonify({'error': 'At least one content type must be selected'}), 400
+    
+    meeting = db.get_meeting(meeting_id)
+    if not meeting:
+        return jsonify({'error': 'Meeting not found'}), 404
+    
+    try:
+        print("🤖 Initializing translation processor...")
+        translator = TranslationProcessor(app.config['OPENAI_API_KEY'])
+        
+        print("📦 Preparing meeting data for translation...")
+        # Prepare meeting data for translation
+        meeting_data = {}
+        
+        if 'transcript' in content_types:
+            transcription = db.get_transcription(meeting_id)
+            if transcription:
+                meeting_data['transcript'] = transcription['full_text']
+        
+        if 'summary' in content_types:
+            summary = db.get_meeting_summary(meeting_id)
+            if summary:
+                meeting_data['summary'] = summary['summary']
+                
+                if 'action_items' in content_types:
+                    meeting_data['action_items'] = summary.get('action_items', [])
+                
+                if 'decisions' in content_types:
+                    meeting_data['decisions'] = summary.get('decisions', [])
+                    
+                if 'key_topics' in content_types:
+                    meeting_data['key_topics'] = summary.get('key_topics', [])
+        
+        if not meeting_data:
+            print("❌ No content available for translation")
+            return jsonify({'error': 'No content available for translation'}), 400
+        
+        print(f"🚀 Starting translation with {len(meeting_data)} content types")
+        # Perform translation
+        translation_result = translator.translate_meeting_content(meeting_data, target_language)
+        print("✅ Translation completed, processing results...")
+        
+        if not translation_result['translation_complete']:
+            return jsonify({'error': f"Translation failed: {translation_result.get('error', 'Unknown error')}"}), 500
+        
+        # Save translations to database
+        saved_translations = []
+        for content_type, translation_data in translation_result['translations'].items():
+            original_text = meeting_data[content_type]
+            if isinstance(original_text, list):
+                original_text = str(original_text)  # Convert lists to string for storage
+            
+            translation_id = db.save_translation(
+                meeting_id, 
+                content_type, 
+                original_text, 
+                translation_data
+            )
+            saved_translations.append({
+                'id': translation_id,
+                'content_type': content_type,
+                'language': translation_data['language_name']
+            })
+        
+        return jsonify({
+            'success': True,
+            'message': f'Content translated to {translation_result["language_info"]["name"]} successfully',
+            'translations': saved_translations,
+            'language_info': translation_result['language_info']
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Translation failed: {str(e)}'}), 500
+
+@app.route('/meeting/<int:meeting_id>/translations')
+def view_meeting_translations(meeting_id):
+    """View all translations for a meeting"""
+    meeting = db.get_meeting(meeting_id)
+    if not meeting:
+        flash('Meeting not found')
+        return redirect(url_for('index'))
+    
+    translations = db.get_meeting_translations(meeting_id)
+    available_languages = db.get_available_translation_languages(meeting_id)
+    
+    # Group translations by language
+    translations_by_language = {}
+    for translation in translations:
+        lang_key = translation['target_language']
+        if lang_key not in translations_by_language:
+            translations_by_language[lang_key] = {
+                'language_info': {
+                    'name': translation['language_name'],
+                    'code': translation['language_code'],
+                    'native_name': translation['native_name']
+                },
+                'translations': []
+            }
+        translations_by_language[lang_key]['translations'].append(translation)
+    
+    return render_template('meeting_translations.html', 
+                         meeting=meeting,
+                         translations_by_language=translations_by_language,
+                         available_languages=available_languages)
+
+@app.route('/meeting/<int:meeting_id>/translation/<target_language>')
+def view_single_language_translation(meeting_id, target_language):
+    """View translations for a specific language"""
+    meeting = db.get_meeting(meeting_id)
+    if not meeting:
+        flash('Meeting not found')
+        return redirect(url_for('index'))
+    
+    translations = db.get_meeting_translations(meeting_id, target_language)
+    if not translations:
+        flash(f'No translations found for {target_language}')
+        return redirect(url_for('view_meeting', meeting_id=meeting_id))
+    
+    # Group by content type
+    translations_by_type = {}
+    language_info = None
+    for translation in translations:
+        content_type = translation['content_type']
+        translations_by_type[content_type] = translation
+        if not language_info:
+            language_info = {
+                'name': translation['language_name'],
+                'code': translation['language_code'],
+                'native_name': translation['native_name']
+            }
+    
+    return render_template('single_language_translation.html',
+                         meeting=meeting,
+                         translations_by_type=translations_by_type,
+                         language_info=language_info,
+                         target_language=target_language)
+
+@app.route('/search_translations', methods=['GET', 'POST'])
+def search_translations():
+    """Search within translated content"""
+    if request.method == 'POST':
+        search_query = request.form.get('query', '').strip()
+        target_language = request.form.get('language', '')
+        
+        if not search_query:
+            flash('Please enter a search query')
+            return redirect(request.url)
+        
+        # Perform search
+        if target_language:
+            results = db.search_translations(search_query, target_language)
+        else:
+            results = db.search_translations(search_query)
+        
+        # Get available languages for filter
+        if app.config['OPENAI_API_KEY']:
+            translator = TranslationProcessor(app.config['OPENAI_API_KEY'])
+            supported_languages = translator.get_supported_languages()
+        else:
+            supported_languages = {}
+        
+        return render_template('translation_search_results.html',
+                             search_query=search_query,
+                             results=results,
+                             target_language=target_language,
+                             supported_languages=supported_languages)
+    
+    # GET request - show search form
+    if app.config['OPENAI_API_KEY']:
+        translator = TranslationProcessor(app.config['OPENAI_API_KEY'])
+        supported_languages = translator.get_supported_languages()
+    else:
+        supported_languages = {}
+    
+    return render_template('translation_search.html', supported_languages=supported_languages)
+
+@app.route('/delete_translation/<int:translation_id>', methods=['POST'])
+def delete_translation(translation_id):
+    """Delete a specific translation"""
+    translation = db.get_translation_by_id(translation_id)
+    if not translation:
+        return jsonify({'error': 'Translation not found'}), 404
+    
+    try:
+        # For now, we'll delete from database directly
+        # In production, you might want to implement soft delete
+        import sqlite3
+        conn = sqlite3.connect(db.db_path)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM translations WHERE id = ?', (translation_id,))
+        conn.commit()
+        conn.close()
+        
+        return jsonify({'success': True, 'message': 'Translation deleted successfully'})
     except Exception as e:
         return jsonify({'error': f'Delete failed: {str(e)}'}), 500
 

@@ -15,6 +15,8 @@ An intelligent meeting processing system that automatically transcribes audio re
 - **Semantic Search (Embeddings)**: AI-powered searchable knowledge base across all meetings
 - **Cross-Meeting Discovery**: Find patterns, themes, and insights across meetings (Bonus +2pts)
 - **Similarity Recommendations**: AI-powered meeting recommendations and connections
+- **Translation Support (GPT-4)**: Translate meeting content to low-resource languages
+- **Multi-Language Search**: Search across translated content in multiple languages
 - **Web Interface**: Professional, responsive UI with real-time updates and advanced search
 - **Database Storage**: Complete SQLite schema with vector embeddings support
 - **Real-time Processing**: Live status updates during transcription and analysis
@@ -157,6 +159,50 @@ An intelligent meeting processing system that automatically transcribes audio re
 - **Theme Analysis**: Discover patterns in action items, decisions, challenges, etc.
 - **AI Recommendations**: Get suggestions for meeting optimization
 
+### Translate Meeting Content
+
+1. **Start Translation**: From any transcribed meeting
+
+   - Click "Translate Content" button on meeting detail page
+   - Select target language from 10+ supported low-resource languages
+   - Choose content types to translate (transcript, summary, action items, decisions, topics)
+   - Wait for GPT-4 translation (typically 1-3 minutes)
+
+2. **Supported Languages**:
+
+   - **Georgian** (ქართული) - `ka`
+   - **Slovak** (Slovenčina) - `sk`
+   - **Slovenian** (Slovenščina) - `sl`
+   - **Latvian** (Latviešu) - `lv`
+   - **Lithuanian** (Lietuvių) - `lt`
+   - **Estonian** (Eesti) - `et`
+   - **Bulgarian** (Български) - `bg`
+   - **Croatian** (Hrvatski) - `hr`
+   - **Albanian** (Shqip) - `sq`
+   - **Macedonian** (Македонски) - `mk`
+
+3. **View Translations**: Access translated content
+
+   - Click "View Translations" to see all available languages
+   - Browse translations by language or content type
+   - View side-by-side with original content
+   - Export translations as text files
+
+4. **Search Translations**: Multi-language search capability
+
+   - Use "Translations" in navigation for cross-language search
+   - Filter by specific languages or search across all translations
+   - Find content in native languages with context preservation
+   - Business-appropriate translations maintaining professional tone
+
+### Translation Features
+
+- **Context-Aware Translation**: GPT-4 maintains business context and professional tone
+- **Content Type Preservation**: Maintains formatting for action items, decisions, and topics
+- **Speaker Attribution**: Preserves speaker labels and conversation flow in transcripts
+- **Cultural Appropriateness**: Ensures business-appropriate language for each culture
+- **Quality Assurance**: Low temperature settings for consistent, accurate translations
+
 ### Supported Audio Formats
 
 - MP3, WAV, M4A, MP4, MPEG, MPGA, WEBM
@@ -174,6 +220,7 @@ meeting-assistant/
 ├── content_analyzer.py   # GPT-4 content analysis + function calling
 ├── semantic_search.py    # Embeddings API + semantic search engine
 ├── visual_synthesis.py   # DALL-E 3 API + visual asset generation
+├── translation_processor.py # GPT-4 translation for low-resource languages
 ├── templates/            # HTML templates
 │   ├── base.html
 │   ├── index.html
@@ -184,7 +231,11 @@ meeting-assistant/
 │   ├── insights.html
 │   ├── visual_detail.html
 │   ├── meeting_visuals.html
-│   └── visual_gallery.html
+│   ├── visual_gallery.html
+│   ├── meeting_translations.html
+│   ├── single_language_translation.html
+│   ├── translation_search.html
+│   └── translation_search_results.html
 ├── uploads/              # Audio file storage
 ├── requirements.txt      # Python dependencies
 ├── test_basic.py         # Test suite
@@ -198,6 +249,7 @@ meeting-assistant/
 - **meeting_summaries**: AI-generated summaries, action items, and decisions
 - **meeting_insights**: Effectiveness scores, engagement analysis, and recommendations
 - **embeddings**: Vector embeddings for semantic search and similarity analysis
+- **translations**: Multi-language translations with content type and language metadata
 - **visual_assets**: DALL-E 3 generated images with metadata and prompts
 
 ## 🔧 Development
@@ -239,11 +291,12 @@ This project is developed for KIU Consulting's internal use.
 
 ---
 
-**Note**: This system now includes ALL 4 PHASES COMPLETE:
+**Note**: This system now includes ALL 4 PHASES COMPLETE + BONUS FEATURES:
 
 - ✅ **Phase 1**: Audio Processing (Whisper API)
 - ✅ **Phase 2**: Content Analysis (GPT-4 + Function Calling)
 - ✅ **Phase 3**: Semantic Search (Embeddings API)
 - ✅ **Phase 4**: Visual Synthesis (DALL-E 3 API)
+- ✅ **BONUS**: Low Resource Language Translation Support (GPT-4)
 
-**Complete AI Meeting Assistant** with all OpenAI APIs integrated and professional visual asset generation capabilities.
+**Complete AI Meeting Assistant** with all OpenAI APIs integrated, professional visual asset generation, and multi-language support for global accessibility.

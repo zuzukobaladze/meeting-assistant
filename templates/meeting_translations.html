@@ -1,0 +1,175 @@
+{% extends "base.html" %} {% block title %}Translations for {{ meeting.title }}
+- Meeting Assistant{% endblock %} {% block content %}
+<div class="container-fluid">
+  <div class="row">
+    <div class="col-12">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h1><i class="fas fa-language"></i> Meeting Translations</h1>
+          <p class="text-muted mb-0">
+            <strong>{{ meeting.title }}</strong> • {{ available_languages|length
+            }} language(s) available
+          </p>
+        </div>
+        <div>
+          <a
+            href="{{ url_for('view_meeting', meeting_id=meeting.id) }}"
+            class="btn btn-outline-secondary"
+          >
+            <i class="fas fa-arrow-left"></i> Back to Meeting
+          </a>
+          <a
+            href="{{ url_for('search_translations') }}"
+            class="btn btn-outline-info"
+          >
+            <i class="fas fa-search"></i> Search Translations
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if translations_by_language %}
+  <div class="row">
+    {% for lang_key, lang_data in translations_by_language.items() %}
+    <div class="col-lg-6 mb-4">
+      <div class="card h-100">
+        <div class="card-header bg-primary text-white">
+          <h5 class="mb-0">
+            <i class="fas fa-globe"></i>
+            {{ lang_data.language_info.native_name }}
+            <small class="opacity-75"
+              >({{ lang_data.language_info.name }})</small
+            >
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <span class="badge bg-info">
+              {{ lang_data.translations|length }} content piece(s) translated
+            </span>
+            <a
+              href="{{ url_for('view_single_language_translation', meeting_id=meeting.id, target_language=lang_key) }}"
+              class="btn btn-outline-primary btn-sm"
+            >
+              <i class="fas fa-eye"></i> View All
+            </a>
+          </div>
+
+          <!-- Show preview of translations -->
+          {% for translation in lang_data.translations[:3] %}
+          <div class="mb-3 p-2 bg-light rounded">
+            <div class="d-flex justify-content-between align-items-center mb-1">
+              <span class="badge bg-secondary"
+                >{{ translation.content_type|title }}</span
+              >
+              <small class="text-muted"
+                >{{ translation.created_at[:16] }}</small
+              >
+            </div>
+            <p class="mb-0 small">
+              {{ translation.translated_text[:200] }} {% if
+              translation.translated_text|length > 200 %}...{% endif %}
+            </p>
+          </div>
+          {% endfor %} {% if lang_data.translations|length > 3 %}
+          <p class="text-muted text-center mb-0">
+            <small>And {{ lang_data.translations|length - 3 }} more...</small>
+          </p>
+          {% endif %}
+        </div>
+        <div class="card-footer">
+          <div class="d-flex justify-content-between align-items-center">
+            <small class="text-muted">
+              Language Code: {{ lang_data.language_info.code }}
+            </small>
+            <div class="btn-group btn-group-sm">
+              <a
+                href="{{ url_for('view_single_language_translation', meeting_id=meeting.id, target_language=lang_key) }}"
+                class="btn btn-outline-success"
+              >
+                <i class="fas fa-eye"></i> View
+              </a>
+              <button
+                class="btn btn-outline-danger"
+                onclick="deleteLanguageTranslations('{{ lang_key }}', '{{ lang_data.language_info.name }}')"
+              >
+                <i class="fas fa-trash"></i> Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="row">
+    <div class="col-12">
+      <div class="card border-warning">
+        <div class="card-body text-center py-5">
+          <i class="fas fa-language fa-3x text-warning mb-3"></i>
+          <h3>No Translations Available</h3>
+          <p class="text-muted mb-4">
+            This meeting hasn't been translated yet. Start by translating the
+            content to your desired language.
+          </p>
+          <a
+            href="{{ url_for('view_meeting', meeting_id=meeting.id) }}"
+            class="btn btn-primary"
+          >
+            <i class="fas fa-language"></i> Translate Content
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Language Statistics -->
+  {% if available_languages %}
+  <div class="row mt-4">
+    <div class="col-12">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-chart-bar"></i> Translation Statistics
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            {% for lang in available_languages %}
+            <div class="col-md-3 mb-3">
+              <div class="text-center p-3 bg-light rounded">
+                <h6 class="mb-1">{{ lang.native_name }}</h6>
+                <span class="badge bg-primary"
+                  >{{ lang.content_count }} items</span
+                >
+                <p class="small text-muted mb-0">{{ lang.language_name }}</p>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  function deleteLanguageTranslations(languageKey, languageName) {
+    if (
+      !confirm(
+        `Are you sure you want to delete all ${languageName} translations for this meeting?`
+      )
+    ) {
+      return;
+    }
+
+    // For now, we'll implement this as needed
+    // This would require a new backend route
+    alert("Delete functionality will be implemented based on your needs");
+  }
+</script>
+{% endblock %}
