@@ -1,0 +1,139 @@
+{% extends "base.html" %} {% block title %}Dashboard - Meeting Assistant{%
+endblock %} {% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h1><i class="fas fa-calendar-alt"></i> Meeting Dashboard</h1>
+      <a href="{{ url_for('upload_meeting') }}" class="btn btn-primary btn-lg">
+        <i class="fas fa-plus"></i> Upload New Meeting
+      </a>
+    </div>
+  </div>
+</div>
+
+{% if meetings %}
+<div class="row">
+  {% for meeting in meetings %}
+  <div class="col-md-6 col-lg-4 mb-4">
+    <div class="card meeting-card h-100 shadow-sm">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <h5 class="card-title">{{ meeting.title }}</h5>
+          <span class="status-badge status-{{ meeting.status }}">
+            {% if meeting.status == 'uploaded' %}
+            <i class="fas fa-cloud"></i> Uploaded {% elif meeting.status ==
+            'processing' %} <i class="fas fa-spinner fa-spin"></i> Processing {%
+            elif meeting.status == 'transcribed' %}
+            <i class="fas fa-check"></i> Transcribed {% elif meeting.status ==
+            'error' %} <i class="fas fa-exclamation-triangle"></i> Error {%
+            endif %}
+          </span>
+        </div>
+
+        <p class="card-text text-muted">
+          <i class="fas fa-file-audio"></i> {{ meeting.filename }}
+        </p>
+
+        <div class="row text-center mb-3">
+          <div class="col-6">
+            <small class="text-muted">Duration</small><br />
+            <strong>
+              {% if meeting.duration %} {{ "%.1f"|format(meeting.duration) }}s
+              {% else %} Unknown {% endif %}
+            </strong>
+          </div>
+          <div class="col-6">
+            <small class="text-muted">Uploaded</small><br />
+            <strong>{{ meeting.uploaded_at[:10] }}</strong>
+          </div>
+        </div>
+
+        <div class="d-grid">
+          <a
+            href="{{ url_for('view_meeting', meeting_id=meeting.id) }}"
+            class="btn btn-outline-primary"
+          >
+            <i class="fas fa-eye"></i> View Details
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="row justify-content-center">
+  <div class="col-md-8 text-center">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body py-5">
+        <i class="fas fa-microphone-slash fa-4x text-muted mb-4"></i>
+        <h3 class="text-muted">No meetings found</h3>
+        <p class="text-muted mb-4">
+          Start by uploading your first meeting recording to begin building your
+          searchable knowledge base.
+        </p>
+        <a
+          href="{{ url_for('upload_meeting') }}"
+          class="btn btn-primary btn-lg"
+        >
+          <i class="fas fa-cloud-upload-alt"></i> Upload Your First Meeting
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Statistics Section -->
+<div class="row mt-5">
+  <div class="col-12">
+    <h3><i class="fas fa-chart-bar"></i> Quick Stats</h3>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card bg-primary text-white">
+      <div class="card-body text-center">
+        <i class="fas fa-file-audio fa-2x mb-2"></i>
+        <h4>{{ meetings|length }}</h4>
+        <p class="mb-0">Total Meetings</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card bg-success text-white">
+      <div class="card-body text-center">
+        <i class="fas fa-check-circle fa-2x mb-2"></i>
+        <h4>
+          {{ meetings|selectattr("status", "equalto", "transcribed")|list|length
+          }}
+        </h4>
+        <p class="mb-0">Transcribed</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card bg-warning text-white">
+      <div class="card-body text-center">
+        <i class="fas fa-clock fa-2x mb-2"></i>
+        <h4>
+          {{ meetings|selectattr("status", "equalto", "processing")|list|length
+          }}
+        </h4>
+        <p class="mb-0">Processing</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-3 mb-3">
+    <div class="card bg-info text-white">
+      <div class="card-body text-center">
+        <i class="fas fa-clock fa-2x mb-2"></i>
+        <h4>
+          {% set total_duration =
+          meetings|selectattr("duration")|map(attribute="duration")|sum %} {{
+          "%.1f"|format(total_duration/60) }}m
+        </h4>
+        <p class="mb-0">Total Duration</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

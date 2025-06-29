@@ -1,0 +1,231 @@
+{% extends "base.html" %} {% block title %}Upload Meeting - Meeting Assistant{%
+endblock %} {% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card shadow">
+      <div class="card-header bg-primary text-white">
+        <h4 class="mb-0">
+          <i class="fas fa-cloud-upload-alt"></i> Upload New Meeting
+        </h4>
+      </div>
+      <div class="card-body">
+        <form method="POST" enctype="multipart/form-data" id="uploadForm">
+          <div class="mb-4">
+            <label for="meeting_title" class="form-label">
+              <i class="fas fa-heading"></i> Meeting Title *
+            </label>
+            <input
+              type="text"
+              class="form-control"
+              id="meeting_title"
+              name="meeting_title"
+              placeholder="e.g., Weekly Team Standup - Jan 2024"
+              required
+            />
+            <div class="form-text">
+              Choose a descriptive title to help identify this meeting later
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <label for="audio_file" class="form-label">
+              <i class="fas fa-file-audio"></i> Audio File *
+            </label>
+            <div class="upload-area" id="uploadArea">
+              <i class="fas fa-cloud-upload-alt fa-3x text-primary mb-3"></i>
+              <h5>Drag & Drop your audio file here</h5>
+              <p class="text-muted">or click to browse</p>
+              <input
+                type="file"
+                class="form-control d-none"
+                id="audio_file"
+                name="audio_file"
+                accept=".mp3,.wav,.m4a,.mp4,.mpeg,.mpga,.webm"
+                required
+              />
+              <button
+                type="button"
+                class="btn btn-outline-primary"
+                onclick="document.getElementById('audio_file').click()"
+              >
+                <i class="fas fa-folder-open"></i> Browse Files
+              </button>
+            </div>
+            <div class="form-text">
+              Supported formats: MP3, WAV, M4A, MP4, MPEG, MPGA, WEBM (Max:
+              100MB)
+            </div>
+            <div id="fileInfo" class="mt-2 d-none">
+              <div class="alert alert-info">
+                <i class="fas fa-file-audio"></i>
+                <strong>Selected:</strong> <span id="fileName"></span> (<span
+                  id="fileSize"
+                ></span
+                >)
+              </div>
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-6">
+              <a href="{{ url_for('index') }}" class="btn btn-secondary w-100">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+              </a>
+            </div>
+            <div class="col-6">
+              <button
+                type="submit"
+                class="btn btn-primary w-100"
+                id="submitBtn"
+              >
+                <i class="fas fa-upload"></i> Upload Meeting
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Upload Instructions -->
+    <div class="card mt-4">
+      <div class="card-header">
+        <h5 class="mb-0">
+          <i class="fas fa-info-circle"></i> Upload Guidelines
+        </h5>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          <div class="col-md-6">
+            <h6>
+              <i class="fas fa-check-circle text-success"></i> Best Practices
+            </h6>
+            <ul class="list-unstyled">
+              <li>
+                <i class="fas fa-microphone text-primary"></i> Clear audio
+                recordings work best
+              </li>
+              <li>
+                <i class="fas fa-clock text-primary"></i> 20-30 minute files are
+                optimal
+              </li>
+              <li>
+                <i class="fas fa-users text-primary"></i> Multiple speakers
+                supported
+              </li>
+              <li>
+                <i class="fas fa-language text-primary"></i> Multiple languages
+                supported
+              </li>
+            </ul>
+          </div>
+          <div class="col-md-6">
+            <h6><i class="fas fa-cogs text-info"></i> What Happens Next</h6>
+            <ul class="list-unstyled">
+              <li>
+                <i class="fas fa-upload text-primary"></i> File uploaded to
+                secure storage
+              </li>
+              <li>
+                <i class="fas fa-robot text-primary"></i> AI transcription with
+                speaker ID
+              </li>
+              <li>
+                <i class="fas fa-search text-primary"></i> Automatic content
+                analysis
+              </li>
+              <li>
+                <i class="fas fa-database text-primary"></i> Added to searchable
+                knowledge base
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  // Drag and drop functionality
+  const uploadArea = document.getElementById("uploadArea");
+  const fileInput = document.getElementById("audio_file");
+  const fileInfo = document.getElementById("fileInfo");
+  const fileName = document.getElementById("fileName");
+  const fileSize = document.getElementById("fileSize");
+  const submitBtn = document.getElementById("submitBtn");
+
+  // Prevent default drag behaviors
+  ["dragenter", "dragover", "dragleave", "drop"].forEach((eventName) => {
+    uploadArea.addEventListener(eventName, preventDefaults, false);
+    document.body.addEventListener(eventName, preventDefaults, false);
+  });
+
+  // Highlight drop area when item is dragged over it
+  ["dragenter", "dragover"].forEach((eventName) => {
+    uploadArea.addEventListener(eventName, highlight, false);
+  });
+
+  ["dragleave", "drop"].forEach((eventName) => {
+    uploadArea.addEventListener(eventName, unhighlight, false);
+  });
+
+  // Handle dropped files
+  uploadArea.addEventListener("drop", handleDrop, false);
+
+  // Handle file selection
+  fileInput.addEventListener("change", handleFileSelect, false);
+
+  function preventDefaults(e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+
+  function highlight(e) {
+    uploadArea.classList.add("dragover");
+  }
+
+  function unhighlight(e) {
+    uploadArea.classList.remove("dragover");
+  }
+
+  function handleDrop(e) {
+    const dt = e.dataTransfer;
+    const files = dt.files;
+
+    if (files.length > 0) {
+      fileInput.files = files;
+      showFileInfo(files[0]);
+    }
+  }
+
+  function handleFileSelect(e) {
+    const files = e.target.files;
+    if (files.length > 0) {
+      showFileInfo(files[0]);
+    }
+  }
+
+  function showFileInfo(file) {
+    fileName.textContent = file.name;
+    fileSize.textContent = formatFileSize(file.size);
+    fileInfo.classList.remove("d-none");
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  }
+
+  // Form submission handling
+  document
+    .getElementById("uploadForm")
+    .addEventListener("submit", function (e) {
+      submitBtn.innerHTML =
+        '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+      submitBtn.disabled = true;
+    });
+</script>
+{% endblock %}

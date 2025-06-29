@@ -1,0 +1,274 @@
+{% extends "base.html" %} {% block title %}{{ meeting.title }} - Meeting
+Assistant{% endblock %} {% block content %}
+<div class="row">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h1>{{ meeting.title }}</h1>
+        <p class="text-muted mb-0">
+          <i class="fas fa-file-audio"></i> {{ meeting.filename }} {% if
+          meeting.duration %} • {{ "%.1f"|format(meeting.duration) }}s duration
+          {% endif %} • Uploaded {{ meeting.uploaded_at[:10] }}
+        </p>
+      </div>
+      <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left"></i> Back to Dashboard
+      </a>
+    </div>
+  </div>
+</div>
+
+<!-- Status and Actions -->
+<div class="row mb-4">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <div class="row align-items-center">
+          <div class="col-md-6">
+            <h5 class="mb-0">
+              Status:
+              <span class="status-badge status-{{ meeting.status }}">
+                {% if meeting.status == 'uploaded' %}
+                <i class="fas fa-cloud"></i> Uploaded {% elif meeting.status ==
+                'processing' %}
+                <i class="fas fa-spinner fa-spin"></i> Processing {% elif
+                meeting.status == 'transcribed' %}
+                <i class="fas fa-check"></i> Transcribed {% elif meeting.status
+                == 'error' %} <i class="fas fa-exclamation-triangle"></i> Error
+                {% endif %}
+              </span>
+            </h5>
+            {% if meeting.transcribed_at %}
+            <small class="text-muted"
+              >Transcribed on {{ meeting.transcribed_at[:16] }}</small
+            >
+            {% endif %}
+          </div>
+          <div class="col-md-6 text-end">
+            {% if meeting.status in ['uploaded', 'error'] %}
+            <button
+              class="btn btn-primary"
+              onclick="startTranscription({{ meeting.id }})"
+            >
+              <i class="fas fa-play"></i> Start Transcription
+            </button>
+            {% elif meeting.status == 'processing' %}
+            <button class="btn btn-secondary" disabled>
+              <i class="fas fa-spinner fa-spin"></i> Processing...
+            </button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card bg-light">
+      <div class="card-body text-center">
+        <h6 class="card-title">Quick Actions</h6>
+        <div class="btn-group-vertical w-100" role="group">
+          <button class="btn btn-outline-primary btn-sm" disabled>
+            <i class="fas fa-file-alt"></i> Generate Summary (Coming Soon)
+          </button>
+          <button class="btn btn-outline-primary btn-sm" disabled>
+            <i class="fas fa-search"></i> Search Content (Coming Soon)
+          </button>
+          <button class="btn btn-outline-primary btn-sm" disabled>
+            <i class="fas fa-image"></i> Create Visual (Coming Soon)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Transcription Section -->
+{% if transcription %}
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div
+        class="card-header d-flex justify-content-between align-items-center"
+      >
+        <h5 class="mb-0"><i class="fas fa-file-alt"></i> Transcription</h5>
+        <div>
+          {% if transcription.language %}
+          <span class="badge bg-secondary"
+            >{{ transcription.language.upper() }}</span
+          >
+          {% endif %}
+          <button class="btn btn-sm btn-outline-primary" onclick="toggleView()">
+            <i class="fas fa-exchange-alt"></i> Switch View
+          </button>
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- Full Text View -->
+        <div id="fullTextView">
+          <h6><i class="fas fa-align-left"></i> Full Transcript</h6>
+          <div class="p-3 bg-light rounded">{{ transcription.full_text }}</div>
+        </div>
+
+        <!-- Segmented View -->
+        <div id="segmentedView" class="d-none">
+          <h6><i class="fas fa-users"></i> Speaker Segments</h6>
+          {% if transcription.segments %}
+          <div
+            class="segments-container"
+            style="max-height: 500px; overflow-y: auto"
+          >
+            {% for segment in transcription.segments %}
+            <div class="transcription-segment">
+              <div
+                class="d-flex justify-content-between align-items-start mb-2"
+              >
+                <span class="speaker-label">{{ segment.speaker }}</span>
+                <span class="timestamp">
+                  {{ "%.1f"|format(segment.start) }}s - {{
+                  "%.1f"|format(segment.end) }}s
+                </span>
+              </div>
+              <p class="mb-0">{{ segment.text }}</p>
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+          <p class="text-muted">No speaker segments available</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% else %} {% if meeting.status == 'uploaded' %}
+<div class="row">
+  <div class="col-12">
+    <div class="card border-warning">
+      <div class="card-body text-center">
+        <i class="fas fa-microphone fa-3x text-warning mb-3"></i>
+        <h4>Ready for Transcription</h4>
+        <p class="text-muted">
+          This meeting is ready to be transcribed. Click the button above to
+          start the AI transcription process.
+        </p>
+        <small class="text-muted">
+          <i class="fas fa-info-circle"></i>
+          Transcription typically takes 1-3 minutes for a 20-30 minute meeting.
+        </small>
+      </div>
+    </div>
+  </div>
+</div>
+{% elif meeting.status == 'processing' %}
+<div class="row">
+  <div class="col-12">
+    <div class="card border-info">
+      <div class="card-body text-center">
+        <i class="fas fa-spinner fa-spin fa-3x text-info mb-3"></i>
+        <h4>Transcription in Progress</h4>
+        <p class="text-muted">
+          AI is currently transcribing your meeting. Please wait...
+        </p>
+        <div class="progress">
+          <div
+            class="progress-bar progress-bar-striped progress-bar-animated"
+            role="progressbar"
+            style="width: 50%"
+          ></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% elif meeting.status == 'error' %}
+<div class="row">
+  <div class="col-12">
+    <div class="card border-danger">
+      <div class="card-body text-center">
+        <i class="fas fa-exclamation-triangle fa-3x text-danger mb-3"></i>
+        <h4>Transcription Failed</h4>
+        <p class="text-muted">
+          There was an error processing this meeting. Please try again.
+        </p>
+        <button
+          class="btn btn-danger"
+          onclick="startTranscription({{ meeting.id }})"
+        >
+          <i class="fas fa-redo"></i> Retry Transcription
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %} {% endif %}
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body text-center">
+        <i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i>
+        <h5>Starting Transcription...</h5>
+        <p class="text-muted">
+          This may take a few minutes depending on the audio length.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  let currentView = 'full';
+
+  function toggleView() {
+      const fullTextView = document.getElementById('fullTextView');
+      const segmentedView = document.getElementById('segmentedView');
+
+      if (currentView === 'full') {
+          fullTextView.classList.add('d-none');
+          segmentedView.classList.remove('d-none');
+          currentView = 'segments';
+      } else {
+          segmentedView.classList.add('d-none');
+          fullTextView.classList.remove('d-none');
+          currentView = 'full';
+      }
+  }
+
+  function startTranscription(meetingId) {
+      // Show loading modal
+      const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+      loadingModal.show();
+
+      // Make AJAX request to start transcription
+      fetch(`/transcribe/${meetingId}`, {
+          method: 'POST',
+          headers: {
+              'Content-Type': 'application/json',
+          }
+      })
+      .then(response => response.json())
+      .then(data => {
+          loadingModal.hide();
+
+          if (data.success) {
+              // Reload page to show transcription
+              location.reload();
+          } else {
+              alert('Error: ' + data.error);
+          }
+      })
+      .catch(error => {
+          loadingModal.hide();
+          alert('Network error: ' + error.message);
+      });
+  }
+
+  // Auto-refresh for processing status
+  {% if meeting.status == 'processing' %}
+  setTimeout(() => {
+      location.reload();
+  }, 10000); // Refresh every 10 seconds
+  {% endif %}
+</script>
+{% endblock %}
