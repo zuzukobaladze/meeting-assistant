@@ -68,6 +68,21 @@ class DatabaseManager:
             )
         ''')
         
+        # Meeting insights table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS meeting_insights (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                meeting_id INTEGER NOT NULL,
+                effectiveness_score INTEGER,
+                effectiveness_notes TEXT,
+                engagement_analysis TEXT,  -- JSON string
+                communication_patterns TEXT,  -- JSON string
+                recommendations TEXT,  -- JSON string
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (meeting_id) REFERENCES meetings (id)
+            )
+        ''')
+        
         conn.commit()
         conn.close()
     
@@ -173,5 +188,86 @@ class DatabaseManager:
             data = dict(result)
             if data['segments']:
                 data['segments'] = json.loads(data['segments'])
+            return data
+        return None
+    
+    def save_meeting_summary(self, meeting_id: int, summary: str, action_items: List[Dict], 
+                           decisions: List[Dict], key_topics: List[Dict]):
+        """Save meeting analysis results"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO meeting_summaries (meeting_id, summary, action_items, decisions, key_topics)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (meeting_id, summary, json.dumps(action_items), json.dumps(decisions), json.dumps(key_topics)))
+        
+        conn.commit()
+        conn.close()
+    
+    def save_meeting_insights(self, meeting_id: int, insights: Dict):
+        """Save meeting insights"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO meeting_insights (meeting_id, effectiveness_score, effectiveness_notes,
+                                        engagement_analysis, communication_patterns, recommendations)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (
+            meeting_id,
+            insights.get('effectiveness_score'),
+            insights.get('effectiveness_notes'),
+            json.dumps(insights.get('engagement_analysis', {})),
+            json.dumps(insights.get('communication_patterns', {})),
+            json.dumps(insights.get('recommendations', []))
+        ))
+        
+        conn.commit()
+        conn.close()
+    
+    def get_meeting_summary(self, meeting_id: int) -> Optional[Dict]:
+        """Get meeting summary"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT * FROM meeting_summaries WHERE meeting_id = ?
+            ORDER BY created_at DESC LIMIT 1
+        ''', (meeting_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result:
+            data = dict(result)
+            # Parse JSON fields
+            for field in ['action_items', 'decisions', 'key_topics']:
+                if data[field]:
+                    data[field] = json.loads(data[field])
+            return data
+        return None
+    
+    def get_meeting_insights(self, meeting_id: int) -> Optional[Dict]:
+        """Get meeting insights"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT * FROM meeting_insights WHERE meeting_id = ?
+            ORDER BY created_at DESC LIMIT 1
+        ''', (meeting_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result:
+            data = dict(result)
+            # Parse JSON fields
+            for field in ['engagement_analysis', 'communication_patterns', 'recommendations']:
+                if data[field]:
+                    data[field] = json.loads(data[field])
             return data
         return None 
