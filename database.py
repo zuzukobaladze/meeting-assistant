@@ -270,4 +270,98 @@ class DatabaseManager:
                 if data[field]:
                     data[field] = json.loads(data[field])
             return data
-        return None 
+        return None
+    
+    def save_embeddings(self, meeting_id: int, embeddings_data: List[Dict]):
+        """Save embeddings for a meeting"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Delete existing embeddings for this meeting
+        cursor.execute('DELETE FROM embeddings WHERE meeting_id = ?', (meeting_id,))
+        
+        # Insert new embeddings
+        for item in embeddings_data:
+            cursor.execute('''
+                INSERT INTO embeddings (meeting_id, text_chunk, embedding, chunk_index)
+                VALUES (?, ?, ?, ?)
+            ''', (
+                meeting_id,
+                item['text'],
+                json.dumps(item['embedding']),
+                item.get('chunk_index', 0)
+            ))
+        
+        conn.commit()
+        conn.close()
+    
+    def get_all_embeddings(self) -> List[Dict]:
+        """Get all embeddings from database"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT e.*, m.title 
+            FROM embeddings e
+            JOIN meetings m ON e.meeting_id = m.id
+            WHERE m.status = 'transcribed'
+        ''')
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        embeddings = []
+        for row in results:
+            data = dict(row)
+            data['embedding'] = json.loads(data['embedding'])
+            data['metadata'] = {'title': data['title'], 'type': 'transcription'}
+            embeddings.append(data)
+        
+        return embeddings
+    
+    def get_meeting_embeddings(self, meeting_id: int) -> List[Dict]:
+        """Get embeddings for a specific meeting"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT e.*, m.title 
+            FROM embeddings e
+            JOIN meetings m ON e.meeting_id = m.id
+            WHERE e.meeting_id = ?
+        ''', (meeting_id,))
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        embeddings = []
+        for row in results:
+            data = dict(row)
+            data['embedding'] = json.loads(data['embedding'])
+            data['metadata'] = {'title': data['title'], 'type': 'transcription'}
+            embeddings.append(data)
+        
+        return embeddings
+    
+    def search_meetings_by_text(self, search_query: str) -> List[Dict]:
+        """Basic text search as fallback"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT DISTINCT m.*, t.full_text, s.summary
+            FROM meetings m
+            LEFT JOIN transcriptions t ON m.id = t.meeting_id
+            LEFT JOIN meeting_summaries s ON m.id = s.meeting_id
+            WHERE m.status = 'transcribed' 
+            AND (m.title LIKE ? OR t.full_text LIKE ? OR s.summary LIKE ?)
+            ORDER BY m.uploaded_at DESC
+        ''', (f'%{search_query}%', f'%{search_query}%', f'%{search_query}%'))
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        return [dict(row) for row in results] 

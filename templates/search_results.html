@@ -1,0 +1,198 @@
+{% extends "base.html" %} {% block title %}Search Results{% endblock %} {% block
+content %}
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-12">
+      <!-- Search Form -->
+      <div class="card mb-4">
+        <div class="card-body">
+          <h5 class="card-title">
+            <i class="fas fa-search"></i> Semantic Search
+          </h5>
+          <form method="POST" action="{{ url_for('search_meetings') }}">
+            <div class="input-group">
+              <input
+                type="text"
+                class="form-control"
+                name="query"
+                placeholder="Search across all meetings (e.g., 'action items', 'budget discussion', 'team decisions')"
+                value="{{ query or '' }}"
+                required
+              />
+              <button class="btn btn-primary" type="submit">
+                <i class="fas fa-search"></i> Search
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {% if query %}
+      <h2>Search Results for: "{{ query }}"</h2>
+
+      {% if results %}
+      <div class="alert alert-success">
+        <i class="fas fa-check-circle"></i>
+        Found {{ results|length }} semantic matches across your meetings
+      </div>
+
+      <!-- Semantic Search Results -->
+      <div class="row">
+        {% for result in results %}
+        <div class="col-md-6 mb-3">
+          <div class="card">
+            <div
+              class="card-header d-flex justify-content-between align-items-center"
+            >
+              <h6 class="mb-0">
+                <a
+                  href="{{ url_for('view_meeting', meeting_id=result.meeting_id) }}"
+                  class="text-decoration-none"
+                >
+                  {{ result.metadata.title }}
+                </a>
+              </h6>
+              <span class="badge bg-primary"
+                >{{ "%.1f"|format(result.similarity * 100) }}% match</span
+              >
+            </div>
+            <div class="card-body">
+              <small class="text-muted"
+                >{{ result.chunk_type|title }} Content:</small
+              >
+              <p class="card-text">
+                {{ result.text[:200] }}{% if result.text|length > 200 %}...{%
+                endif %}
+              </p>
+              <div class="d-flex justify-content-between align-items-center">
+                <small class="text-muted">
+                  Similarity: {{ "%.1f"|format(result.similarity * 100) }}%
+                </small>
+                <a
+                  href="{{ url_for('view_meeting', meeting_id=result.meeting_id) }}"
+                  class="btn btn-sm btn-outline-primary"
+                >
+                  View Meeting
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% elif fallback_results %}
+      <div class="alert alert-warning">
+        <i class="fas fa-info-circle"></i>
+        Semantic search unavailable. Showing basic text search results:
+      </div>
+
+      <div class="row">
+        {% for meeting in fallback_results %}
+        <div class="col-md-6 mb-3">
+          <div class="card">
+            <div class="card-header">
+              <h6 class="mb-0">
+                <a
+                  href="{{ url_for('view_meeting', meeting_id=meeting.id) }}"
+                  class="text-decoration-none"
+                >
+                  {{ meeting.title }}
+                </a>
+              </h6>
+            </div>
+            <div class="card-body">
+              <p class="card-text">
+                {% if meeting.summary %} {{ meeting.summary[:200] }}{% if
+                meeting.summary|length > 200 %}...{% endif %} {% else %} Meeting
+                transcribed on {{ meeting.transcribed_at }} {% endif %}
+              </p>
+              <a
+                href="{{ url_for('view_meeting', meeting_id=meeting.id) }}"
+                class="btn btn-sm btn-outline-primary"
+              >
+                View Meeting
+              </a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+
+      {% else %}
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        No results found for "{{ query }}". Try different keywords or check if
+        meetings are analyzed.
+      </div>
+      {% endif %}
+
+      <!-- Cross-Meeting Insights -->
+      {% if cross_insights %}
+      <div class="mt-5">
+        <h3>Cross-Meeting Insights</h3>
+        <p class="text-muted">
+          Discover patterns and themes across your meetings
+        </p>
+
+        <div class="row">
+          {% for theme, insights in cross_insights.items() %} {% if insights %}
+          <div class="col-md-6 mb-3">
+            <div class="card">
+              <div class="card-header">
+                <h6 class="mb-0">{{ theme|title }}</h6>
+              </div>
+              <div class="card-body">
+                <small class="text-muted"
+                  >{{ insights|length }} related meetings found</small
+                >
+                {% for insight in insights[:3] %}
+                <div class="border-start border-primary ps-3 mb-2">
+                  <small class="fw-bold">{{ insight.title }}</small><br />
+                  <small class="text-muted">
+                    Relevance: {{ "%.1f"|format(insight.total_similarity * 100)
+                    }}%
+                  </small>
+                </div>
+                {% endfor %} {% if insights|length > 3 %}
+                <small class="text-muted"
+                  >+{{ insights|length - 3 }} more meetings...</small
+                >
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% endif %} {% endfor %}
+        </div>
+
+        <div class="text-center mt-3">
+          <a
+            href="{{ url_for('cross_meeting_insights') }}"
+            class="btn btn-outline-primary"
+          >
+            <i class="fas fa-chart-line"></i> View Detailed Insights
+          </a>
+        </div>
+      </div>
+      {% endif %} {% else %}
+      <div class="alert alert-info">
+        <i class="fas fa-lightbulb"></i>
+        <strong>Semantic Search Tips:</strong>
+        <ul class="mb-0 mt-2">
+          <li>
+            Search for concepts: "action items", "budget discussions", "team
+            decisions"
+          </li>
+          <li>Ask questions: "What were the main challenges discussed?"</li>
+          <li>Find patterns: "follow-up meetings", "project updates"</li>
+          <li>
+            Discover insights across all your meetings using AI-powered semantic
+            understanding
+          </li>
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
