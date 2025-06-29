@@ -37,7 +37,7 @@ An intelligent meeting processing system that automatically transcribes audio re
 1. **Clone the repository**
 
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/zuzukobaladze/meeting-assistant
    cd meeting-assistant
    ```
 
@@ -232,20 +232,6 @@ This system addresses KIU Consulting's **25,000 GEL annual loss per employee** d
 - **Knowledge Retention**: Searchable meeting history
 - **Decision Transparency**: Clear record of decisions and reasoning
 - **Time Efficiency**: Quick meeting summaries for non-attendees
-
-## 🏆 Assessment Criteria Progress
-
-- ✅ **Multi-API Integration (15 pts)**: ALL 4 OpenAI APIs implemented (Whisper + GPT-4 + Function Calling + Embeddings + DALL-E 3)
-- ✅ **Advanced AI Features (10 pts)**: Function calling, speaker ID, content analysis, meeting insights, semantic search, cross-meeting discovery, visual synthesis
-- ✅ **Technical Quality (8 pts)**: Clean code, error handling, modular architecture, comprehensive testing
-- ✅ **Test Cases (4 pts)**: 9/9 tests passing, full system coverage including visual synthesis
-- ✅ **Documentation (3 pts)**: Comprehensive README, code docs, usage examples
-
-**TOTAL: 40/40 pts + 5 bonus points** (Function Calling +3, Visual Synthesis +2)
-
-## 🤝 Contributing
-
-This is a hackathon project for KIU Consulting. For issues or feature requests, please create an issue in the repository.
 
 ## 📄 License
 
