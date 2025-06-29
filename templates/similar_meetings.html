@@ -1,0 +1,210 @@
+{% extends "base.html" %} {% block title %}Similar Meetings{% endblock %} {%
+block content %}
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-12">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2>Meetings Similar to: "{{ meeting.title }}"</h2>
+          <p class="text-muted">
+            Discover related content and patterns across your meetings
+          </p>
+        </div>
+        <a
+          href="{{ url_for('view_meeting', meeting_id=meeting.id) }}"
+          class="btn btn-outline-secondary"
+        >
+          <i class="fas fa-arrow-left"></i> Back to Meeting
+        </a>
+      </div>
+
+      <!-- Similar Meetings -->
+      {% if similar_meetings %}
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0"><i class="fas fa-copy"></i> Similar Meetings</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            {% for similar in similar_meetings %}
+            <div class="col-md-6 mb-3">
+              <div class="card border-primary">
+                <div
+                  class="card-header d-flex justify-content-between align-items-center"
+                >
+                  <h6 class="mb-0">Meeting #{{ similar.meeting_id }}</h6>
+                  <span class="badge bg-primary"
+                    >{{ "%.1f"|format(similar.similarity * 100) }}%
+                    similar</span
+                  >
+                </div>
+                <div class="card-body">
+                  <p class="card-text">
+                    <strong>Similarity Score:</strong> {{
+                    "%.1f"|format(similar.similarity * 100) }}%<br />
+                    <strong>Content Matches:</strong> {{ similar.match_count }}
+                    sections
+                  </p>
+                  <a
+                    href="{{ url_for('view_meeting', meeting_id=similar.meeting_id) }}"
+                    class="btn btn-sm btn-primary"
+                  >
+                    View Meeting
+                  </a>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Recommendations -->
+      {% if recommendations %}
+      <div class="card mb-4">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-lightbulb"></i> AI Recommendations
+          </h5>
+        </div>
+        <div class="card-body">
+          <!-- Similar Meetings Recommendations -->
+          {% if recommendations.similar_meetings %}
+          <div class="mb-4">
+            <h6>Related Meetings You Should Review:</h6>
+            {% for rec in recommendations.similar_meetings %}
+            <div
+              class="alert alert-info d-flex justify-content-between align-items-center"
+            >
+              <div>
+                <strong>Meeting #{{ rec.meeting_id }}</strong><br />
+                <small>{{ rec.reason }}</small>
+              </div>
+              <a
+                href="{{ url_for('view_meeting', meeting_id=rec.meeting_id) }}"
+                class="btn btn-sm btn-outline-primary"
+                >View</a
+              >
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+
+          <!-- Related Topics -->
+          {% if recommendations.related_topics %}
+          <div class="mb-4">
+            <h6>Related Topics Across Meetings:</h6>
+            <div class="row">
+              {% for topic in recommendations.related_topics %}
+              <div class="col-md-6 mb-2">
+                <div class="card border-success">
+                  <div class="card-body py-2">
+                    <small>
+                      <strong>{{ topic.theme|title }}</strong><br />
+                      Found in {{ topic.related_meetings_count }} other meetings
+                      {% if topic.top_meeting_id %}
+                      <a
+                        href="{{ url_for('view_meeting', meeting_id=topic.top_meeting_id) }}"
+                        class="text-decoration-none"
+                        >(View Top Match)</a
+                      >
+                      {% endif %}
+                    </small>
+                  </div>
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% endif %}
+
+          <!-- Action Suggestions -->
+          {% if recommendations.action_suggestions %}
+          <div class="mb-4">
+            <h6>Suggested Actions:</h6>
+            {% for suggestion in recommendations.action_suggestions %}
+            <div class="alert alert-warning">
+              <i class="fas fa-tasks"></i> {{ suggestion }}
+            </div>
+            {% endfor %}
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Cross-Meeting Theme Analysis -->
+      {% if cross_insights %}
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-chart-line"></i> Cross-Meeting Theme Analysis
+          </h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted">
+            How this meeting relates to broader patterns across all meetings:
+          </p>
+
+          <div class="row">
+            {% for theme, insights in cross_insights.items() %} {% if insights
+            %} {% set current_meeting_in_theme = insights |
+            selectattr('meeting_id', 'equalto', meeting.id) | list %} {% if
+            current_meeting_in_theme %}
+            <div class="col-md-6 mb-3">
+              <div class="card border-warning">
+                <div class="card-header">
+                  <h6 class="mb-0">{{ theme|title }}</h6>
+                </div>
+                <div class="card-body">
+                  {% set current_insight = current_meeting_in_theme[0] %}
+                  <small class="text-muted">
+                    This meeting ranks #{{ loop.index }} in this theme<br />
+                    Relevance Score: {{
+                    "%.1f"|format(current_insight.total_similarity * 100) }}%<br />
+                    Related Meetings: {{ insights|length - 1 }} others
+                  </small>
+
+                  {% if current_insight.relevant_chunks %}
+                  <div class="mt-2">
+                    <strong>Key Content:</strong>
+                    {% for chunk in current_insight.relevant_chunks[:2] %}
+                    <div class="border-start border-warning ps-2 mt-1">
+                      <small>"{{ chunk.text }}"</small>
+                    </div>
+                    {% endfor %}
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+            {% endif %} {% endif %} {% endfor %}
+          </div>
+
+          <div class="text-center mt-3">
+            <a
+              href="{{ url_for('cross_meeting_insights') }}"
+              class="btn btn-outline-warning"
+            >
+              <i class="fas fa-chart-line"></i> View Complete Cross-Meeting
+              Analysis
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endif %} {% if not similar_meetings and not recommendations %}
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        No similar meetings found. This could mean:
+        <ul class="mb-0 mt-2">
+          <li>This meeting covers unique topics</li>
+          <li>Not enough meetings have been analyzed yet</li>
+          <li>Embeddings need to be generated (analyze more meetings first)</li>
+        </ul>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -82,10 +82,18 @@ Assistant{% endblock %} {% block content %}
           <button class="btn btn-outline-secondary btn-sm" disabled>
             <i class="fas fa-brain"></i> Analyze (Transcribe First)
           </button>
-          {% endif %}
-          <button class="btn btn-outline-primary btn-sm" disabled>
-            <i class="fas fa-search"></i> Search Content (Coming Soon)
+          {% endif %} {% if meeting.status == 'transcribed' %}
+          <a
+            href="{{ url_for('similar_meetings', meeting_id=meeting.id) }}"
+            class="btn btn-outline-info btn-sm"
+          >
+            <i class="fas fa-copy"></i> Find Similar Meetings
+          </a>
+          {% else %}
+          <button class="btn btn-outline-secondary btn-sm" disabled>
+            <i class="fas fa-copy"></i> Similar (Transcribe First)
           </button>
+          {% endif %}
           <button class="btn btn-outline-primary btn-sm" disabled>
             <i class="fas fa-image"></i> Create Visual (Coming Soon)
           </button>

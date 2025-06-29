@@ -1,0 +1,286 @@
+{% extends "base.html" %} {% block title %}Cross-Meeting Insights{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-12">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2>Cross-Meeting Insights Dashboard</h2>
+          <p class="text-muted">
+            Discover patterns, themes, and insights across all your meetings
+          </p>
+        </div>
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left"></i> Back to Dashboard
+        </a>
+      </div>
+
+      {% if insights %}
+      <div class="alert alert-success mb-4">
+        <i class="fas fa-chart-line"></i>
+        <strong>Analysis Complete:</strong> Found patterns across {{
+        meetings|length }} meetings using AI-powered semantic analysis.
+      </div>
+
+      <!-- Theme Analysis Grid -->
+      <div class="row">
+        {% for theme, theme_insights in insights.items() %} {% if theme_insights
+        %}
+        <div class="col-md-6 mb-4">
+          <div class="card h-100">
+            <div class="card-header bg-primary text-white">
+              <h5 class="mb-0">
+                {% if 'action' in theme.lower() %}
+                <i class="fas fa-tasks"></i>
+                {% elif 'decision' in theme.lower() %}
+                <i class="fas fa-gavel"></i>
+                {% elif 'challenge' in theme.lower() %}
+                <i class="fas fa-exclamation-triangle"></i>
+                {% elif 'project' in theme.lower() %}
+                <i class="fas fa-project-diagram"></i>
+                {% elif 'collaboration' in theme.lower() %}
+                <i class="fas fa-users"></i>
+                {% else %}
+                <i class="fas fa-lightbulb"></i>
+                {% endif %} {{ theme|title }}
+              </h5>
+            </div>
+            <div class="card-body">
+              <p class="text-muted mb-3">
+                <strong>{{ theme_insights|length }}</strong> meetings contain
+                relevant content for this theme
+              </p>
+
+              <!-- Top meetings for this theme -->
+              {% for insight in theme_insights[:5] %}
+              <div class="border-bottom pb-2 mb-3">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div class="flex-grow-1">
+                    <h6 class="mb-1">
+                      <a
+                        href="{{ url_for('view_meeting', meeting_id=insight.meeting_id) }}"
+                        class="text-decoration-none"
+                      >
+                        {{ insight.title }}
+                      </a>
+                    </h6>
+                    <small class="text-muted">
+                      Relevance: {{ "%.1f"|format(insight.total_similarity *
+                      100) }}% | {{ insight.relevant_chunks|length }} relevant
+                      sections
+                    </small>
+                  </div>
+                  <span class="badge bg-secondary"> #{{ loop.index }} </span>
+                </div>
+
+                <!-- Show relevant content preview -->
+                {% if insight.relevant_chunks %}
+                <div class="mt-2">
+                  {% for chunk in insight.relevant_chunks[:2] %}
+                  <div class="alert alert-light py-1 px-2 mb-1">
+                    <small>
+                      <em>"{{ chunk.text }}"</em>
+                      <span class="text-muted"
+                        >({{ "%.1f"|format(chunk.similarity * 100) }}%
+                        match)</span
+                      >
+                    </small>
+                  </div>
+                  {% endfor %} {% if insight.relevant_chunks|length > 2 %}
+                  <small class="text-muted"
+                    >+{{ insight.relevant_chunks|length - 2 }} more
+                    sections...</small
+                  >
+                  {% endif %}
+                </div>
+                {% endif %}
+              </div>
+              {% endfor %} {% if theme_insights|length > 5 %}
+              <small class="text-muted">
+                +{{ theme_insights|length - 5 }} more meetings with this
+                theme...
+              </small>
+              {% endif %}
+            </div>
+            <div class="card-footer">
+              <small class="text-muted">
+                <i class="fas fa-clock"></i> Auto-generated using semantic
+                analysis
+              </small>
+            </div>
+          </div>
+        </div>
+        {% endif %} {% endfor %}
+      </div>
+
+      <!-- Summary Statistics -->
+      <div class="card mt-4">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-chart-bar"></i> Insight Statistics
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-3 text-center">
+              <h3 class="text-primary">{{ meetings|length }}</h3>
+              <small class="text-muted">Total Meetings Analyzed</small>
+            </div>
+            <div class="col-md-3 text-center">
+              <h3 class="text-success">{{ insights|length }}</h3>
+              <small class="text-muted">Themes Discovered</small>
+            </div>
+            <div class="col-md-3 text-center">
+              {% set total_connections = insights.values() | map('length') | sum
+              %}
+              <h3 class="text-warning">{{ total_connections }}</h3>
+              <small class="text-muted">Cross-Meeting Connections</small>
+            </div>
+            <div class="col-md-3 text-center">
+              {% set avg_score = insights.values() | map('map',
+              attribute='total_similarity') | map('list') | map('sum') | sum /
+              total_connections if total_connections > 0 else 0 %}
+              <h3 class="text-info">{{ "%.1f"|format(avg_score * 100) }}%</h3>
+              <small class="text-muted">Avg. Relevance Score</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Meeting Network -->
+      <div class="card mt-4">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-network-wired"></i> Meeting Relationship Network
+          </h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted">
+            How your meetings are connected through common themes:
+          </p>
+
+          <!-- Simple text-based network visualization -->
+          <div class="row">
+            {% for meeting_id, meeting in meetings.items() %} {% if
+            meeting.status == 'transcribed' %}
+            <div class="col-md-4 mb-3">
+              <div class="card border-info">
+                <div class="card-body py-2">
+                  <h6 class="card-title mb-1">
+                    <a
+                      href="{{ url_for('view_meeting', meeting_id=meeting.id) }}"
+                      class="text-decoration-none"
+                    >
+                      {{ meeting.title }}
+                    </a>
+                  </h6>
+                  <small class="text-muted">
+                    Connected to: {% set connection_count = 0 %} {% for theme,
+                    theme_insights in insights.items() %} {% for insight in
+                    theme_insights %} {% if insight.meeting_id == meeting.id %}
+                    {% set connection_count = connection_count +
+                    (theme_insights|length - 1) %} {% endif %} {% endfor %} {%
+                    endfor %} {{ connection_count }} other meetings
+                  </small>
+                  <br />
+                  <a
+                    href="{{ url_for('similar_meetings', meeting_id=meeting.id) }}"
+                    class="btn btn-sm btn-outline-info"
+                  >
+                    View Connections
+                  </a>
+                </div>
+              </div>
+            </div>
+            {% endif %} {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Recommendations -->
+      <div class="card mt-4">
+        <div class="card-header bg-warning text-dark">
+          <h5 class="mb-0"><i class="fas fa-robot"></i> AI Recommendations</h5>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            <div class="col-md-6">
+              <h6>Meeting Optimization Suggestions:</h6>
+              <ul class="list-unstyled">
+                {% if insights['action items and follow-ups'] %}
+                <li class="mb-2">
+                  <i class="fas fa-check text-success"></i>
+                  <strong>Action Item Tracking:</strong> {{ insights['action
+                  items and follow-ups']|length }} meetings contain action
+                  items.
+                  <small class="text-muted"
+                    >Consider creating a centralized action item tracker.</small
+                  >
+                </li>
+                {% endif %} {% if insights['key decisions and outcomes'] %}
+                <li class="mb-2">
+                  <i class="fas fa-gavel text-primary"></i>
+                  <strong>Decision Documentation:</strong> {{ insights['key
+                  decisions and outcomes']|length }} meetings recorded
+                  decisions.
+                  <small class="text-muted"
+                    >Ensure decisions are communicated to all
+                    stakeholders.</small
+                  >
+                </li>
+                {% endif %} {% if insights['challenges and problems discussed']
+                %}
+                <li class="mb-2">
+                  <i class="fas fa-exclamation-triangle text-warning"></i>
+                  <strong>Challenge Resolution:</strong> {{ insights['challenges
+                  and problems discussed']|length }} meetings discussed
+                  challenges.
+                  <small class="text-muted"
+                    >Review for recurring issues that need systematic
+                    solutions.</small
+                  >
+                </li>
+                {% endif %}
+              </ul>
+            </div>
+            <div class="col-md-6">
+              <h6>Content Quality Insights:</h6>
+              <ul class="list-unstyled">
+                <li class="mb-2">
+                  <i class="fas fa-users text-info"></i>
+                  <strong>Collaboration Patterns:</strong> Cross-meeting
+                  analysis reveals communication patterns that can improve team
+                  effectiveness.
+                </li>
+                <li class="mb-2">
+                  <i class="fas fa-lightbulb text-success"></i>
+                  <strong>Knowledge Sharing:</strong> Similar topics appear
+                  across meetings - consider creating knowledge base articles.
+                </li>
+                <li class="mb-2">
+                  <i class="fas fa-chart-line text-primary"></i>
+                  <strong>Meeting Effectiveness:</strong> Use semantic search to
+                  quickly find relevant past discussions before future meetings.
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% else %}
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i>
+        <strong>No insights available yet.</strong>
+        <p class="mb-0 mt-2">To generate cross-meeting insights:</p>
+        <ol class="mt-2 mb-0">
+          <li>Upload and transcribe meeting recordings</li>
+          <li>Analyze meetings using GPT-4 (this auto-generates embeddings)</li>
+          <li>Return here to see patterns and connections across meetings</li>
+        </ol>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

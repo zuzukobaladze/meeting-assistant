@@ -4,7 +4,7 @@ An intelligent meeting processing system that automatically transcribes audio re
 
 ## 🚀 Features
 
-### ✅ Implemented (Phases 1 & 2 Complete)
+### ✅ Implemented (Phases 1, 2 & 3 Complete)
 
 - **Audio Processing with Whisper API**: Upload and transcribe meeting recordings (.mp3, .wav, .m4a, etc.)
 - **Speaker Identification**: AI-powered speaker detection and segmentation
@@ -12,13 +12,15 @@ An intelligent meeting processing system that automatically transcribes audio re
 - **Decision Extraction**: Automatically identify and document key decisions made
 - **Function Calling**: Calendar/task API integration for action items (Bonus +3pts)
 - **Meeting Insights**: Effectiveness scoring and engagement analysis with recommendations
-- **Web Interface**: Professional, responsive UI with real-time updates
-- **Database Storage**: Complete SQLite schema for all current and future features
+- **Semantic Search (Embeddings)**: AI-powered searchable knowledge base across all meetings
+- **Cross-Meeting Discovery**: Find patterns, themes, and insights across meetings (Bonus +2pts)
+- **Similarity Recommendations**: AI-powered meeting recommendations and connections
+- **Web Interface**: Professional, responsive UI with real-time updates and advanced search
+- **Database Storage**: Complete SQLite schema with vector embeddings support
 - **Real-time Processing**: Live status updates during transcription and analysis
 
-### 🔄 Coming Soon (Phase 3)
+### 🔄 Coming Soon (Phase 4)
 
-- **Semantic Search (Embeddings)**: Searchable knowledge base across all meetings
 - **Visual Synthesis (DALL-E 3)**: Create visual summaries and presentation assets
 - **Advanced Features**: Fine-tuning, real-time processing, multi-language support
 
@@ -107,6 +109,33 @@ An intelligent meeting processing system that automatically transcribes audio re
    - Discussion topics and main points
    - Meeting effectiveness insights and recommendations
 
+### Search Across Meetings (Phase 3)
+
+1. **Semantic Search**: Use the "Search" button in navigation
+
+   - Search for concepts like "action items", "budget discussions", "team decisions"
+   - AI understands meaning, not just keywords
+   - View similarity scores and relevant content excerpts
+
+2. **Find Similar Meetings**: From any meeting detail page
+
+   - Click "Find Similar Meetings" button
+   - See AI-generated recommendations and connections
+   - Discover related content across your meeting history
+
+3. **Cross-Meeting Insights**: Visit the "Insights" dashboard
+   - Explore patterns and themes across all meetings
+   - View AI-generated meeting relationship networks
+   - Get optimization recommendations for meeting effectiveness
+
+### Key Search Features
+
+- **Semantic Understanding**: Search by meaning, not just exact words
+- **Cross-Meeting Discovery**: Find related content across different meetings
+- **Similarity Scoring**: See how relevant results are (percentage match)
+- **Theme Analysis**: Discover patterns in action items, decisions, challenges, etc.
+- **AI Recommendations**: Get suggestions for meeting optimization
+
 ### Supported Audio Formats
 
 - MP3, WAV, M4A, MP4, MPEG, MPGA, WEBM
@@ -122,11 +151,15 @@ meeting-assistant/
 ├── database.py           # Database models and operations
 ├── audio_processor.py    # Whisper API integration
 ├── content_analyzer.py   # GPT-4 content analysis + function calling
+├── semantic_search.py    # Embeddings API + semantic search engine
 ├── templates/            # HTML templates
 │   ├── base.html
 │   ├── index.html
 │   ├── upload.html
-│   └── meeting_detail.html
+│   ├── meeting_detail.html
+│   ├── search_results.html
+│   ├── similar_meetings.html
+│   └── insights.html
 ├── uploads/              # Audio file storage
 ├── requirements.txt      # Python dependencies
 ├── test_basic.py         # Test suite
@@ -139,7 +172,7 @@ meeting-assistant/
 - **transcriptions**: Store full transcripts and speaker segments
 - **meeting_summaries**: AI-generated summaries, action items, and decisions
 - **meeting_insights**: Effectiveness scores, engagement analysis, and recommendations
-- **embeddings**: (Future) Vector embeddings for semantic search
+- **embeddings**: Vector embeddings for semantic search and similarity analysis
 
 ## 🔧 Development
 
@@ -176,10 +209,10 @@ This system addresses KIU Consulting's **25,000 GEL annual loss per employee** d
 
 ## 🏆 Assessment Criteria Progress
 
-- ✅ **Multi-API Integration (15 pts)**: Whisper + GPT-4 + Function Calling implemented, Embeddings/DALL-E next
-- ✅ **Advanced AI Features (10 pts)**: Function calling, speaker ID, content analysis, meeting insights
+- ✅ **Multi-API Integration (15 pts)**: Whisper + GPT-4 + Function Calling + Embeddings implemented, DALL-E next
+- ✅ **Advanced AI Features (10 pts)**: Function calling, speaker ID, content analysis, meeting insights, semantic search, cross-meeting discovery
 - ✅ **Technical Quality (8 pts)**: Clean code, error handling, modular architecture, comprehensive testing
-- ✅ **Test Cases (4 pts)**: 7/7 tests passing, full system coverage
+- ✅ **Test Cases (4 pts)**: 8/8 tests passing, full system coverage including semantic search
 - ✅ **Documentation (3 pts)**: Comprehensive README, code docs, usage examples
 
 ## 🤝 Contributing
@@ -192,4 +225,4 @@ This project is developed for KIU Consulting's internal use.
 
 ---
 
-**Note**: This system now includes Phases 1 & 2 complete (Audio Processing + Content Analysis). Phase 3 (Semantic Search + Visual Synthesis) will be added next while maintaining backward compatibility and system reliability.
+**Note**: This system now includes Phases 1, 2 & 3 complete (Audio Processing + Content Analysis + Semantic Search). Phase 4 (Visual Synthesis with DALL-E 3) will be added next while maintaining backward compatibility and system reliability.
