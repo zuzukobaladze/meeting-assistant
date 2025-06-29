@@ -101,6 +101,25 @@ class DatabaseManager:
             )
         ''')
         
+        # Translations table for multi-language support
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS translations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                meeting_id INTEGER NOT NULL,
+                content_type TEXT NOT NULL,  -- 'transcript', 'summary', 'action_items', 'decisions', 'key_topics'
+                original_text TEXT NOT NULL,
+                translated_text TEXT NOT NULL,
+                target_language TEXT NOT NULL,  -- Language key (e.g., 'georgian', 'slovak')
+                language_name TEXT NOT NULL,    -- Human readable name (e.g., 'Georgian')
+                language_code TEXT NOT NULL,    -- ISO code (e.g., 'ka', 'sk')
+                native_name TEXT NOT NULL,      -- Native language name (e.g., 'ქართული')
+                original_length INTEGER,
+                translated_length INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (meeting_id) REFERENCES meetings (id)
+            )
+        ''')
+        
         conn.commit()
         conn.close()
     
@@ -470,6 +489,144 @@ class DatabaseManager:
             AND (m.title LIKE ? OR t.full_text LIKE ? OR s.summary LIKE ?)
             ORDER BY m.uploaded_at DESC
         ''', (f'%{search_query}%', f'%{search_query}%', f'%{search_query}%'))
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        return [dict(row) for row in results]
+    
+    def save_translation(self, meeting_id: int, content_type: str, original_text: str, 
+                        translation_data: Dict) -> int:
+        """Save a translation for a meeting"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            INSERT INTO translations (meeting_id, content_type, original_text, translated_text,
+                                    target_language, language_name, language_code, native_name,
+                                    original_length, translated_length)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (
+            meeting_id,
+            content_type,
+            original_text,
+            translation_data['translated_text'],
+            translation_data['target_language'],
+            translation_data['language_name'],
+            translation_data['language_code'],
+            translation_data['native_name'],
+            translation_data.get('original_length'),
+            translation_data.get('translated_length')
+        ))
+        
+        translation_id = cursor.lastrowid
+        conn.commit()
+        conn.close()
+        
+        return translation_id
+    
+    def get_meeting_translations(self, meeting_id: int, target_language: str = None) -> List[Dict]:
+        """Get translations for a meeting, optionally filtered by language"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        if target_language:
+            cursor.execute('''
+                SELECT * FROM translations 
+                WHERE meeting_id = ? AND target_language = ?
+                ORDER BY content_type, created_at DESC
+            ''', (meeting_id, target_language))
+        else:
+            cursor.execute('''
+                SELECT * FROM translations 
+                WHERE meeting_id = ?
+                ORDER BY target_language, content_type, created_at DESC
+            ''', (meeting_id,))
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        return [dict(row) for row in results]
+    
+    def get_translation_by_id(self, translation_id: int) -> Optional[Dict]:
+        """Get a specific translation by ID"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT * FROM translations WHERE id = ?
+        ''', (translation_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        
+        if result:
+            return dict(result)
+        return None
+    
+    def get_available_translation_languages(self, meeting_id: int) -> List[Dict]:
+        """Get list of languages that a meeting has been translated to"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT DISTINCT target_language, language_name, language_code, native_name,
+                   COUNT(*) as content_count
+            FROM translations 
+            WHERE meeting_id = ?
+            GROUP BY target_language, language_name, language_code, native_name
+            ORDER BY language_name
+        ''', (meeting_id,))
+        
+        results = cursor.fetchall()
+        conn.close()
+        
+        return [dict(row) for row in results]
+    
+    def delete_meeting_translations(self, meeting_id: int, target_language: str = None):
+        """Delete translations for a meeting, optionally filtered by language"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        if target_language:
+            cursor.execute('''
+                DELETE FROM translations 
+                WHERE meeting_id = ? AND target_language = ?
+            ''', (meeting_id, target_language))
+        else:
+            cursor.execute('''
+                DELETE FROM translations WHERE meeting_id = ?
+            ''', (meeting_id,))
+        
+        conn.commit()
+        conn.close()
+    
+    def search_translations(self, search_query: str, target_language: str = None) -> List[Dict]:
+        """Search within translated content"""
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        if target_language:
+            cursor.execute('''
+                SELECT t.*, m.title as meeting_title, m.uploaded_at
+                FROM translations t
+                JOIN meetings m ON t.meeting_id = m.id
+                WHERE t.target_language = ? 
+                AND (t.translated_text LIKE ? OR m.title LIKE ?)
+                ORDER BY t.created_at DESC
+            ''', (target_language, f'%{search_query}%', f'%{search_query}%'))
+        else:
+            cursor.execute('''
+                SELECT t.*, m.title as meeting_title, m.uploaded_at
+                FROM translations t
+                JOIN meetings m ON t.meeting_id = m.id
+                WHERE t.translated_text LIKE ? OR m.title LIKE ?
+                ORDER BY t.created_at DESC
+            ''', (f'%{search_query}%', f'%{search_query}%'))
         
         results = cursor.fetchall()
         conn.close()
