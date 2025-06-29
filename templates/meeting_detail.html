@@ -93,10 +93,18 @@ Assistant{% endblock %} {% block content %}
           <button class="btn btn-outline-secondary btn-sm" disabled>
             <i class="fas fa-copy"></i> Similar (Transcribe First)
           </button>
-          {% endif %}
-          <button class="btn btn-outline-primary btn-sm" disabled>
-            <i class="fas fa-image"></i> Create Visual (Coming Soon)
+          {% endif %} {% if summary %}
+          <button
+            class="btn btn-outline-warning btn-sm"
+            onclick="generateVisuals({{ meeting.id }})"
+          >
+            <i class="fas fa-magic"></i> Generate Visuals
           </button>
+          {% else %}
+          <button class="btn btn-outline-secondary btn-sm" disabled>
+            <i class="fas fa-magic"></i> Visuals (Analyze First)
+          </button>
+          {% endif %}
         </div>
       </div>
     </div>
@@ -416,6 +424,128 @@ Assistant{% endblock %} {% block content %}
 </div>
 {% endif %}
 
+<!-- Visual Assets -->
+{% if visuals %}
+<div class="row mt-4">
+  <div class="col-12">
+    <div class="card">
+      <div
+        class="card-header bg-warning text-dark d-flex justify-content-between align-items-center"
+      >
+        <h5 class="mb-0"><i class="fas fa-images"></i> Visual Assets</h5>
+        <a
+          href="{{ url_for('meeting_visuals', meeting_id=meeting.id) }}"
+          class="btn btn-sm btn-outline-dark"
+        >
+          <i class="fas fa-expand"></i> View All
+        </a>
+      </div>
+      <div class="card-body">
+        <div class="row">
+          {% for visual in visuals[:4] %}
+          <div class="col-md-3 mb-3">
+            <div class="card border-warning">
+              <img
+                src="{{ visual.image_url }}"
+                class="card-img-top"
+                alt="{{ visual.title }}"
+                style="height: 200px; object-fit: cover"
+              />
+              <div class="card-body p-2">
+                <h6 class="card-title mb-1">{{ visual.title }}</h6>
+                <small class="text-muted"
+                  >{{ visual.visual_type|replace('_', ' ')|title }}</small
+                >
+                <div class="mt-2">
+                  <a
+                    href="{{ url_for('view_visual', visual_id=visual.id) }}"
+                    class="btn btn-sm btn-outline-warning"
+                  >
+                    <i class="fas fa-eye"></i> View
+                  </a>
+                  <button
+                    class="btn btn-sm btn-outline-danger"
+                    onclick="deleteVisual({{ visual.id }})"
+                  >
+                    <i class="fas fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        {% if visuals|length > 4 %}
+        <div class="text-center mt-3">
+          <small class="text-muted"
+            >Showing 4 of {{ visuals|length }} visual assets</small
+          >
+        </div>
+        {% endif %}
+
+        <!-- Visual Generation Tools -->
+        {% if summary %}
+        <div class="mt-3 pt-3 border-top">
+          <h6>Generate Individual Visuals:</h6>
+          <div class="btn-group" role="group">
+            <button
+              class="btn btn-sm btn-outline-primary"
+              onclick="generateSingleVisual({{ meeting.id }}, 'summary')"
+            >
+              <i class="fas fa-file-alt"></i> Summary
+            </button>
+            {% if summary.action_items %}
+            <button
+              class="btn btn-sm btn-outline-success"
+              onclick="generateSingleVisual({{ meeting.id }}, 'action_items')"
+            >
+              <i class="fas fa-tasks"></i> Actions
+            </button>
+            {% endif %} {% if summary.decisions %}
+            <button
+              class="btn btn-sm btn-outline-info"
+              onclick="generateSingleVisual({{ meeting.id }}, 'decisions')"
+            >
+              <i class="fas fa-gavel"></i> Decisions
+            </button>
+            {% endif %}
+            <button
+              class="btn btn-sm btn-outline-warning"
+              onclick="generateSingleVisual({{ meeting.id }}, 'infographic')"
+            >
+              <i class="fas fa-chart-bar"></i> Infographic
+            </button>
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% elif summary %}
+<div class="row mt-4">
+  <div class="col-12">
+    <div class="card border-warning">
+      <div class="card-body text-center">
+        <i class="fas fa-magic fa-3x text-warning mb-3"></i>
+        <h4>Ready for Visual Generation</h4>
+        <p class="text-muted">
+          Create professional visual assets for presentations and sharing with
+          stakeholders.
+        </p>
+        <button
+          class="btn btn-warning"
+          onclick="generateVisuals({{ meeting.id }})"
+        >
+          <i class="fas fa-magic"></i> Generate Complete Visual Pack
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
 <!-- Loading Modal -->
 <div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered">
@@ -522,6 +652,102 @@ Assistant{% endblock %} {% block content %}
           alert('Network error: ' + error.message);
       });
   }
+
+    function generateVisuals(meetingId) {
+        // Show loading modal
+        const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+
+        // Update modal content for visual generation
+        document.querySelector('#loadingModal .modal-body h5').textContent = 'Generating Visual Assets...';
+        document.querySelector('#loadingModal .modal-body p').textContent = 'DALL-E 3 is creating professional visual summaries and presentation materials.';
+
+        loadingModal.show();
+
+        // Make AJAX request to generate visuals
+        fetch(`/generate_visuals/${meetingId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            loadingModal.hide();
+
+            if (data.success) {
+                alert(`✨ Success!\n\n${data.message}\n\nGenerated visual assets:\n${data.visuals.map(v => `• ${v.title}`).join('\n')}`);
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            loadingModal.hide();
+            alert('Network error: ' + error.message);
+        });
+    }
+
+    function generateSingleVisual(meetingId, visualType) {
+        // Show loading modal
+        const loadingModal = new bootstrap.Modal(document.getElementById('loadingModal'));
+
+        // Update modal content
+        document.querySelector('#loadingModal .modal-body h5').textContent = 'Generating Visual...';
+        document.querySelector('#loadingModal .modal-body p').textContent = `Creating ${visualType.replace('_', ' ')} visual using DALL-E 3.`;
+
+        loadingModal.show();
+
+        // Create form data
+        const formData = new FormData();
+        formData.append('visual_type', visualType);
+        formData.append('style', 'professional');
+
+        // Make AJAX request
+        fetch(`/generate_single_visual/${meetingId}`, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            loadingModal.hide();
+
+            if (data.success) {
+                alert(`✨ ${data.message}!\n\nVisual created successfully.`);
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            loadingModal.hide();
+            alert('Network error: ' + error.message);
+        });
+    }
+
+    function deleteVisual(visualId) {
+        if (!confirm('Are you sure you want to delete this visual asset?')) {
+            return;
+        }
+
+        fetch(`/delete_visual/${visualId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Visual deleted successfully');
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Network error: ' + error.message);
+        });
+    }
 
     // Auto-refresh for processing status
     {% if meeting.status == 'processing' %}

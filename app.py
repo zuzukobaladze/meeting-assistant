@@ -6,6 +6,7 @@ from database import DatabaseManager
 from audio_processor import AudioProcessor
 from content_analyzer import ContentAnalyzer
 from semantic_search import SemanticSearchEngine
+from visual_synthesis import VisualSynthesisEngine
 import json
 
 app = Flask(__name__)
@@ -73,12 +74,14 @@ def view_meeting(meeting_id):
     transcription = db.get_transcription(meeting_id)
     summary = db.get_meeting_summary(meeting_id)
     insights = db.get_meeting_insights(meeting_id)
+    visuals = db.get_meeting_visuals(meeting_id)
     
     return render_template('meeting_detail.html', 
                          meeting=meeting, 
                          transcription=transcription,
                          summary=summary,
-                         insights=insights)
+                         insights=insights,
+                         visuals=visuals)
 
 @app.route('/transcribe/<int:meeting_id>', methods=['POST'])
 def transcribe_meeting(meeting_id):
@@ -384,6 +387,191 @@ def generate_embeddings(meeting_id):
             
     except Exception as e:
         return jsonify({'error': f'Error generating embeddings: {str(e)}'}), 500
+
+@app.route('/generate_visuals/<int:meeting_id>', methods=['POST'])
+def generate_meeting_visuals(meeting_id):
+    """Generate visual assets for a meeting using DALL-E 3"""
+    if not app.config['OPENAI_API_KEY']:
+        return jsonify({'error': 'OpenAI API key not configured'}), 400
+    
+    meeting = db.get_meeting(meeting_id)
+    if not meeting:
+        return jsonify({'error': 'Meeting not found'}), 404
+    
+    summary = db.get_meeting_summary(meeting_id)
+    if not summary:
+        return jsonify({'error': 'Meeting must be analyzed first'}), 400
+    
+    try:
+        visual_engine = VisualSynthesisEngine(app.config['OPENAI_API_KEY'])
+        
+        # Prepare meeting data for visual generation
+        meeting_data = {
+            'title': meeting['title'],
+            'summary': summary['summary'],
+            'action_items': summary.get('action_items', []),
+            'decisions': summary.get('decisions', []),
+            'key_topics': summary.get('key_topics', [])
+        }
+        
+        # Generate complete visual presentation pack
+        visual_pack = visual_engine.create_visual_presentation_pack(meeting_id, meeting_data)
+        
+        # Save successful visuals to database
+        saved_visuals = []
+        for visual_item in visual_pack:
+            if visual_item['visual']['success']:
+                visual_data = visual_item['visual'].copy()
+                visual_data['title'] = visual_item['title']
+                visual_data['image_size'] = visual_engine.image_size
+                
+                visual_id = db.save_visual_asset(meeting_id, visual_data)
+                saved_visuals.append({
+                    'id': visual_id,
+                    'type': visual_item['type'],
+                    'title': visual_item['title']
+                })
+        
+        return jsonify({
+            'success': True,
+            'message': f'Generated {len(saved_visuals)} visual assets successfully',
+            'visuals': saved_visuals
+        })
+        
+    except Exception as e:
+        return jsonify({'error': f'Visual generation failed: {str(e)}'}), 500
+
+@app.route('/visual/<int:visual_id>')
+def view_visual(visual_id):
+    """View a specific visual asset"""
+    visual = db.get_visual_asset(visual_id)
+    if not visual:
+        flash('Visual asset not found')
+        return redirect(url_for('index'))
+    
+    meeting = db.get_meeting(visual['meeting_id'])
+    return render_template('visual_detail.html', visual=visual, meeting=meeting)
+
+@app.route('/meeting/<int:meeting_id>/visuals')
+def meeting_visuals(meeting_id):
+    """View all visual assets for a meeting"""
+    meeting = db.get_meeting(meeting_id)
+    if not meeting:
+        flash('Meeting not found')
+        return redirect(url_for('index'))
+    
+    visuals = db.get_meeting_visuals(meeting_id)
+    return render_template('meeting_visuals.html', meeting=meeting, visuals=visuals)
+
+@app.route('/visuals')
+def visual_gallery():
+    """Gallery of all visual assets"""
+    # Get visuals by type
+    summaries = db.get_all_visuals_by_type('meeting_summary')
+    action_items = db.get_all_visuals_by_type('action_items')
+    decisions = db.get_all_visuals_by_type('decisions')
+    infographics = db.get_all_visuals_by_type('infographic')
+    
+    return render_template('visual_gallery.html', 
+                         summaries=summaries,
+                         action_items=action_items,
+                         decisions=decisions,
+                         infographics=infographics)
+
+@app.route('/generate_single_visual/<int:meeting_id>', methods=['POST'])
+def generate_single_visual(meeting_id):
+    """Generate a single visual of specified type"""
+    if not app.config['OPENAI_API_KEY']:
+        return jsonify({'error': 'OpenAI API key not configured'}), 400
+    
+    visual_type = request.form.get('visual_type')
+    style = request.form.get('style', 'professional')
+    
+    if not visual_type:
+        return jsonify({'error': 'Visual type is required'}), 400
+    
+    meeting = db.get_meeting(meeting_id)
+    summary = db.get_meeting_summary(meeting_id)
+    
+    if not meeting or not summary:
+        return jsonify({'error': 'Meeting and analysis data required'}), 400
+    
+    try:
+        visual_engine = VisualSynthesisEngine(app.config['OPENAI_API_KEY'])
+        
+        result = None
+        title = ""
+        
+        if visual_type == 'summary':
+            key_points = [topic.get('topic', topic) if isinstance(topic, dict) else str(topic) 
+                         for topic in summary.get('key_topics', [])[:5]]
+            result = visual_engine.generate_meeting_visual_summary(
+                meeting['title'], summary['summary'], key_points, style
+            )
+            title = "Meeting Overview"
+            
+        elif visual_type == 'action_items':
+            if not summary.get('action_items'):
+                return jsonify({'error': 'No action items found'}), 400
+            result = visual_engine.generate_action_items_visual(
+                summary['action_items'], meeting['title'], style
+            )
+            title = "Action Items & Next Steps"
+            
+        elif visual_type == 'decisions':
+            if not summary.get('decisions'):
+                return jsonify({'error': 'No decisions found'}), 400
+            result = visual_engine.generate_decisions_visual(
+                summary['decisions'], meeting['title'], style
+            )
+            title = "Key Decisions Made"
+            
+        elif visual_type == 'infographic':
+            meeting_data = {
+                'title': meeting['title'],
+                'summary': summary['summary'],
+                'action_items': summary.get('action_items', []),
+                'decisions': summary.get('decisions', []),
+                'key_topics': summary.get('key_topics', [])
+            }
+            result = visual_engine.generate_meeting_infographic(meeting_data, style)
+            title = "Meeting Infographic"
+            
+        else:
+            return jsonify({'error': 'Invalid visual type'}), 400
+        
+        if result and result['success']:
+            # Save to database
+            visual_data = result.copy()
+            visual_data['title'] = title
+            visual_data['image_size'] = visual_engine.image_size
+            
+            visual_id = db.save_visual_asset(meeting_id, visual_data)
+            
+            return jsonify({
+                'success': True,
+                'message': f'{title} generated successfully',
+                'visual_id': visual_id,
+                'image_url': result['image_url']
+            })
+        else:
+            return jsonify({'error': result.get('error', 'Unknown error')}), 500
+            
+    except Exception as e:
+        return jsonify({'error': f'Visual generation failed: {str(e)}'}), 500
+
+@app.route('/delete_visual/<int:visual_id>', methods=['POST'])
+def delete_visual(visual_id):
+    """Delete a visual asset"""
+    visual = db.get_visual_asset(visual_id)
+    if not visual:
+        return jsonify({'error': 'Visual not found'}), 404
+    
+    try:
+        db.delete_visual_asset(visual_id)
+        return jsonify({'success': True, 'message': 'Visual deleted successfully'})
+    except Exception as e:
+        return jsonify({'error': f'Delete failed: {str(e)}'}), 500
 
 @app.errorhandler(413)
 def too_large(e):

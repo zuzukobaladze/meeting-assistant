@@ -1,0 +1,375 @@
+{% extends "base.html" %} {% block title %}Visual Assets - {{ meeting.title }}{%
+endblock %} {% block content %}
+<div class="container mt-4">
+  <div class="row">
+    <div class="col-md-12">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h2>Visual Assets for: "{{ meeting.title }}"</h2>
+          <p class="text-muted">
+            <i class="fas fa-images"></i> {{ visuals|length }} visual asset{{
+            's' if visuals|length != 1 else '' }} generated
+          </p>
+        </div>
+        <div class="btn-group">
+          <a
+            href="{{ url_for('view_meeting', meeting_id=meeting.id) }}"
+            class="btn btn-outline-secondary"
+          >
+            <i class="fas fa-arrow-left"></i> Back to Meeting
+          </a>
+          {% if visuals %}
+          <button
+            class="btn btn-primary"
+            onclick="generateAdditionalVisuals({{ meeting.id }})"
+          >
+            <i class="fas fa-magic"></i> Generate More
+          </button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if visuals %}
+  <!-- Visual Grid -->
+  <div class="row">
+    {% for visual in visuals %}
+    <div class="col-lg-6 col-xl-4 mb-4">
+      <div class="card h-100 shadow-sm">
+        <div class="position-relative">
+          <img
+            src="{{ visual.image_url }}"
+            class="card-img-top"
+            alt="{{ visual.title }}"
+            style="height: 250px; object-fit: cover; cursor: pointer"
+            onclick="openImageModal('{{ visual.image_url }}', '{{ visual.title }}')"
+          />
+
+          <!-- Visual Type Badge -->
+          <div class="position-absolute top-0 end-0 m-2">
+            {% if visual.visual_type == 'meeting_summary' %}
+            <span class="badge bg-primary">Summary</span>
+            {% elif visual.visual_type == 'action_items' %}
+            <span class="badge bg-success">Actions</span>
+            {% elif visual.visual_type == 'decisions' %}
+            <span class="badge bg-info">Decisions</span>
+            {% elif visual.visual_type == 'infographic' %}
+            <span class="badge bg-warning">Infographic</span>
+            {% else %}
+            <span class="badge bg-secondary"
+              >{{ visual.visual_type|replace('_', ' ')|title }}</span
+            >
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="card-body">
+          <h5 class="card-title">{{ visual.title }}</h5>
+          <p class="card-text">
+            <small class="text-muted">
+              <i class="fas fa-calendar"></i> {{ visual.created_at[:16] }} {% if
+              visual.style %} <br /><i class="fas fa-palette"></i> {{
+              visual.style|title }} style {% endif %} {% if visual.image_size %}
+              <br /><i class="fas fa-expand-arrows-alt"></i> {{
+              visual.image_size }} {% endif %}
+            </small>
+          </p>
+        </div>
+
+        <div class="card-footer bg-transparent">
+          <div class="btn-group w-100" role="group">
+            <a
+              href="{{ url_for('view_visual', visual_id=visual.id) }}"
+              class="btn btn-outline-primary btn-sm"
+            >
+              <i class="fas fa-eye"></i> View
+            </a>
+            <a
+              href="{{ visual.image_url }}"
+              download="{{ visual.title }}.jpg"
+              class="btn btn-outline-success btn-sm"
+            >
+              <i class="fas fa-download"></i> Download
+            </a>
+            <button
+              class="btn btn-outline-danger btn-sm"
+              onclick="deleteVisual({{ visual.id }}, '{{ visual.title }}')"
+            >
+              <i class="fas fa-trash"></i> Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Visual Statistics -->
+  <div class="row mt-4">
+    <div class="col-md-12">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="fas fa-chart-bar"></i> Visual Statistics
+          </h5>
+        </div>
+        <div class="card-body">
+          <div class="row text-center">
+            <div class="col-md-3">
+              <h3 class="text-primary">{{ visuals|length }}</h3>
+              <small class="text-muted">Total Visuals</small>
+            </div>
+            <div class="col-md-3">
+              {% set summary_count = visuals|selectattr('visual_type',
+              'equalto', 'meeting_summary')|list|length %}
+              <h3 class="text-success">{{ summary_count }}</h3>
+              <small class="text-muted">Summaries</small>
+            </div>
+            <div class="col-md-3">
+              {% set action_count = visuals|selectattr('visual_type', 'equalto',
+              'action_items')|list|length %}
+              <h3 class="text-warning">{{ action_count }}</h3>
+              <small class="text-muted">Action Items</small>
+            </div>
+            <div class="col-md-3">
+              {% set infographic_count = visuals|selectattr('visual_type',
+              'equalto', 'infographic')|list|length %}
+              <h3 class="text-info">{{ infographic_count }}</h3>
+              <small class="text-muted">Infographics</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Quick Generation Tools -->
+  <div class="row mt-4">
+    <div class="col-md-12">
+      <div class="card">
+        <div class="card-header">
+          <h6 class="mb-0">
+            <i class="fas fa-magic"></i> Generate New Visuals
+          </h6>
+        </div>
+        <div class="card-body">
+          <p class="text-muted">
+            Create additional visual assets for this meeting:
+          </p>
+          <div class="btn-group flex-wrap" role="group">
+            <button
+              class="btn btn-outline-primary"
+              onclick="generateSpecificVisual('summary')"
+            >
+              <i class="fas fa-file-alt"></i> Meeting Summary
+            </button>
+            <button
+              class="btn btn-outline-success"
+              onclick="generateSpecificVisual('action_items')"
+            >
+              <i class="fas fa-tasks"></i> Action Items
+            </button>
+            <button
+              class="btn btn-outline-info"
+              onclick="generateSpecificVisual('decisions')"
+            >
+              <i class="fas fa-gavel"></i> Decisions
+            </button>
+            <button
+              class="btn btn-outline-warning"
+              onclick="generateSpecificVisual('infographic')"
+            >
+              <i class="fas fa-chart-bar"></i> Infographic
+            </button>
+          </div>
+
+          <div class="mt-3">
+            <label for="styleSelect" class="form-label">Visual Style:</label>
+            <select
+              id="styleSelect"
+              class="form-select"
+              style="max-width: 200px"
+            >
+              <option value="professional">Professional</option>
+              <option value="creative">Creative</option>
+              <option value="minimal">Minimal</option>
+              <option value="technical">Technical</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% else %}
+  <!-- No Visuals State -->
+  <div class="row">
+    <div class="col-md-12">
+      <div class="card border-warning">
+        <div class="card-body text-center">
+          <i class="fas fa-magic fa-3x text-warning mb-3"></i>
+          <h4>No Visual Assets Yet</h4>
+          <p class="text-muted">
+            Generate professional visual summaries and presentation materials
+            for this meeting.
+          </p>
+          <button
+            class="btn btn-warning btn-lg"
+            onclick="generateAdditionalVisuals({{ meeting.id }})"
+          >
+            <i class="fas fa-magic"></i> Generate Visual Pack
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Image Modal -->
+<div class="modal fade" id="imageModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="imageModalTitle">Visual Asset</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+      <div class="modal-body text-center">
+        <img id="modalImage" src="" class="img-fluid" alt="" />
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body text-center">
+        <i class="fas fa-spinner fa-spin fa-3x text-primary mb-3"></i>
+        <h5>Generating Visual...</h5>
+        <p class="text-muted">DALL-E 3 is creating your visual asset.</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %} {% block scripts %}
+<script>
+  function openImageModal(imageUrl, title) {
+    document.getElementById("modalImage").src = imageUrl;
+    document.getElementById("imageModalTitle").textContent = title;
+    const modal = new bootstrap.Modal(document.getElementById("imageModal"));
+    modal.show();
+  }
+
+  function deleteVisual(visualId, title) {
+    if (
+      !confirm(
+        `Are you sure you want to delete "${title}"? This action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    fetch(`/delete_visual/${visualId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        if (data.success) {
+          alert("Visual deleted successfully");
+          location.reload();
+        } else {
+          alert("Error: " + data.error);
+        }
+      })
+      .catch((error) => {
+        alert("Network error: " + error.message);
+      });
+  }
+
+  function generateAdditionalVisuals(meetingId) {
+    // Show loading modal
+    const loadingModal = new bootstrap.Modal(
+      document.getElementById("loadingModal")
+    );
+    loadingModal.show();
+
+    // Make AJAX request to generate visuals
+    fetch(`/generate_visuals/${meetingId}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        loadingModal.hide();
+
+        if (data.success) {
+          alert(
+            `✨ Success!\n\n${
+              data.message
+            }\n\nGenerated visual assets:\n${data.visuals
+              .map((v) => `• ${v.title}`)
+              .join("\n")}`
+          );
+          location.reload();
+        } else {
+          alert("Error: " + data.error);
+        }
+      })
+      .catch((error) => {
+        loadingModal.hide();
+        alert("Network error: " + error.message);
+      });
+  }
+
+  function generateSpecificVisual(visualType) {
+    const style = document.getElementById("styleSelect").value;
+
+    // Show loading modal
+    const loadingModal = new bootstrap.Modal(
+      document.getElementById("loadingModal")
+    );
+    document.querySelector(
+      "#loadingModal .modal-body h5"
+    ).textContent = `Generating ${visualType.replace("_", " ")} Visual...`;
+    loadingModal.show();
+
+    // Create form data
+    const formData = new FormData();
+    formData.append("visual_type", visualType);
+    formData.append("style", style);
+
+    // Make AJAX request
+    fetch(`/generate_single_visual/{{ meeting.id }}`, {
+      method: "POST",
+      body: formData,
+    })
+      .then((response) => response.json())
+      .then((data) => {
+        loadingModal.hide();
+
+        if (data.success) {
+          alert(`✨ ${data.message}!\n\nVisual created successfully.`);
+          location.reload();
+        } else {
+          alert("Error: " + data.error);
+        }
+      })
+      .catch((error) => {
+        loadingModal.hide();
+        alert("Network error: " + error.message);
+      });
+  }
+</script>
+{% endblock %}
